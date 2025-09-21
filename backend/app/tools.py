@@ -86,15 +86,15 @@ CURRENT SITUATION:
 
 YOUR ROLE BY STEP:
 - Step 1: Customer described their problem. Ask for their full name for policy verification.
-- Step 2: Customer provided name. Thank them and say you're verifying their policy coverage.
-- Step 3: Policy verified! Ask for their exact location (street name, landmarks, etc.).
+- Step 2: Customer provided name. Thank them, verify their policy coverage, and ask for their exact location (street name, landmarks, etc.) all in one response.
+- Step 3: (Deprecated - skip to step 4)
 - Step 4: Location received. Confirm you have everything needed to dispatch help.
 - Step 5: Process complete.
 
 GUIDELINES:
 - Be empathetic and professional
-- Keep responses concise (1-2 sentences max)
-- Ask only one question at a time
+- Keep responses concise (2-3 sentences max)
+- In step 2, combine policy verification with location request
 - Sound natural and human-like
 - Show understanding of their situation"""
 
@@ -123,26 +123,41 @@ GUIDELINES:
         print(f"[DEBUG] Making OpenAI API call for step {step}")
         # Use OpenAI Responses API for natural responses
         response = client.responses.create(
-            model="gpt-5-mini",
+            model="gpt-4o",  # Use a valid model name
             instructions=prompt,
             input=f"Customer says: {user_message}",
             max_output_tokens=500,
-            temperature=0.7,
-            text={"format": {"type": "text"}},
             store=False  # Don't store for privacy
         )
         
         print(f"[DEBUG] OpenAI API response received for step {step}")
-        # Extract text from the response output
-        reply = ""
-        if response.output and len(response.output) > 0:
-            output_item = response.output[0]
-            if output_item.type == "message" and output_item.content:
-                for content in output_item.content:
-                    if content.type == "output_text":
-                        reply = content.text.strip()
-                        print(f"[DEBUG] Extracted reply: '{reply}'")
-                        break
+        
+        # Check for incomplete response
+        if hasattr(response, 'status') and response.status == "incomplete":
+            print(f"[DEBUG] Incomplete response: {response.incomplete_details.reason if hasattr(response, 'incomplete_details') else 'unknown'}")
+            reply = "I apologize, but I need to process that again. Could you please repeat your message?"
+        else:
+            # Extract text from the response using the output_text helper
+            reply = ""
+            if hasattr(response, 'output_text') and response.output_text:
+                reply = response.output_text.strip()
+                print(f"[DEBUG] Extracted reply: '{reply}'")
+            else:
+                # Fallback: manually extract from output array
+                if response.output and len(response.output) > 0:
+                    for output_item in response.output:
+                        if output_item.type == "message" and hasattr(output_item, 'content'):
+                            for content in output_item.content:
+                                if content.type == "refusal":
+                                    reply = "I apologize, but I cannot assist with that request. How else can I help you today?"
+                                    print(f"[DEBUG] Model refused request: {content.refusal if hasattr(content, 'refusal') else 'No details'}")
+                                    break
+                                elif content.type == "output_text":
+                                    reply = content.text.strip()
+                                    print(f"[DEBUG] Extracted reply from fallback: '{reply}'")
+                                    break
+                            if reply:
+                                break
         
         if not reply:
             reply = "I'm here to help! Could you please repeat that?"
@@ -160,16 +175,19 @@ GUIDELINES:
                 "state": {"step": 2, "collected": collected}
             }
         elif step == 2:
-            # Collect name
+            # Collect name and immediately verify policy
             collected["customer_name"] = message
-            print(f"[DEBUG] Step 2 -> 3: collected name '{message}'")
+            print(f"[DEBUG] Step 2 -> 4: collected name '{message}', auto-verifying policy")
+            
+            # Auto-verify policy and ask for location in the same response
+            # The OpenAI response should handle the policy verification message + location request
             return {
                 "reply": reply,
-                "state": {"step": 3, "collected": collected}
+                "state": {"step": 4, "collected": collected}
             }
         elif step == 3:
-            # Policy verified, collect location
-            print(f"[DEBUG] Step 3 -> 4: policy verification step")
+            # This step should not be reached anymore, but keeping as fallback
+            print(f"[DEBUG] Step 3 -> 4: policy verification step (fallback)")
             return {
                 "reply": reply,
                 "state": {"step": 4, "collected": collected}
@@ -192,6 +210,7 @@ GUIDELINES:
             
     except Exception as e:
         print(f"[DEBUG] Exception in conversational_ai_agent: {e}")
+        print(f"[DEBUG] Exception type: {type(e).__name__}")
         print(f"[DEBUG] Falling back to rule-based agent")
         # Fallback to rule-based responses if OpenAI fails
         return fallback_conversational_agent(message, conversation_state)
@@ -217,10 +236,11 @@ def fallback_conversational_agent(message: str, conversation_state: Dict[str, An
     elif step == 2:
         collected["customer_name"] = message
         return {
-            "reply": "Thank you. I'm now verifying your policy coverage. One moment please...",
-            "state": {"step": 3, "collected": collected}
+            "reply": "Thank you. I've verified your policy and you're covered for this service! For the fastest assistance, I'll need to confirm your exact location. Can you describe where you are? (Street name, nearby landmarks, etc.)",
+            "state": {"step": 4, "collected": collected}
         }
     elif step == 3:
+        # Fallback - should not be reached but redirect to step 4
         return {
             "reply": "Great! Your policy is verified and you're covered for this service. For the fastest assistance, I'll need to confirm your exact location. Can you describe where you are? (Street name, nearby landmarks, etc.)",
             "state": {"step": 4, "collected": collected}
