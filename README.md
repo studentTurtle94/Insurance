@@ -13,6 +13,13 @@ A functional prototype demonstrating a modular, agent-like architecture for an i
 ```bash
 cd /Users/mbranescu/Desktop/projects/insurance
 source .venv/bin/activate
+
+# Install dependencies (including httpx for Realtime API)
+pip install -r backend/requirements.txt
+
+# Set your OpenAI API key
+export OPENAI_API_KEY=your_openai_api_key_here
+
 # Start the API (use main:app with the app dir)
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir backend/app
 ```
@@ -21,6 +28,7 @@ Endpoints:
 - POST `/api/conversation` → simple dialog state machine
 - POST `/api/process_claim` → orchestrator (policy check → damage assessment → garage locator → client update)
 - GET `/api/get_status` → latest client-facing SMS-like message
+- **POST `/api/realtime/client_secret` → generates ephemeral API keys for secure Realtime API connections**
 
 ### Frontend
 ```bash
@@ -50,7 +58,7 @@ Node note: Versions are pinned for Node 18 (Vite 5 + React 18). With Node 20+, y
 
 ### Conversation Flow
 - POST `/api/conversation` (steps: name → location → issue → done)
-- Frontend performs TTS (SpeechSynthesis) and STT (webkitSpeechRecognition) or typed fallback.
+- **Frontend uses OpenAI Realtime API for real-time voice conversations** with secure ephemeral key authentication
 - Transcript/state/analysis shared via `localStorage` and rendered on `/dashboard`.
 
 ## Demo Flow

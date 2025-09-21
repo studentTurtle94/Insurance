@@ -2,7 +2,7 @@ import json
 import uuid
 import os
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 from openai import OpenAI
 
@@ -550,3 +550,208 @@ def process_roadside_assistance_request(conversation_state: Dict[str, Any]) -> D
     }
     
     return results
+
+# ==================== ADMIN FUNCTIONS ====================
+def get_all_cases_for_admin() -> List[Dict[str, Any]]:
+    """Get all cases with full details for admin dashboard"""
+    if not os.path.exists(CLAIMS_FILE):
+        return []
+    
+    try:
+        with open(CLAIMS_FILE, 'r') as f:
+            claims = json.load(f)
+    except:
+        return []
+    
+    admin_cases = []
+    
+    for claim in claims:
+        # Generate mock conversation and decision data for each case
+        case_data = {
+            "claim": claim,
+            "conversation": generate_mock_conversation(claim),
+            "decisions": generate_mock_decisions(claim)
+        }
+        admin_cases.append(case_data)
+    
+    return admin_cases
+
+def generate_mock_conversation(claim: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Generate mock conversation data based on claim"""
+    problem_type = claim.get("problem_type", "general issue")
+    customer_name = claim.get("policy_holder", "Customer")
+    created_time = claim.get("created_at", datetime.now().isoformat())
+    
+    # Parse the created time and generate conversation timestamps
+    base_time = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+    
+    conversation = [
+        {
+            "timestamp": (base_time - timedelta(minutes=5)).isoformat(),
+            "type": "user",
+            "content": f"I need help with my {problem_type}"
+        },
+        {
+            "timestamp": (base_time - timedelta(minutes=4, seconds=30)).isoformat(),
+            "type": "agent",
+            "content": f"I understand you're having a {problem_type} issue. To verify your coverage, can you please confirm your full name as it appears on your policy?"
+        },
+        {
+            "timestamp": (base_time - timedelta(minutes=4)).isoformat(),
+            "type": "user",
+            "content": customer_name
+        },
+        {
+            "timestamp": (base_time - timedelta(minutes=3, seconds=45)).isoformat(),
+            "type": "agent",
+            "content": "Thank you. I've verified your policy and you're covered for this service! For the fastest assistance, I'll need to confirm your exact location."
+        },
+        {
+            "timestamp": (base_time - timedelta(minutes=3)).isoformat(),
+            "type": "user",
+            "content": "I'm on Harrow Road near the main shopping area"
+        },
+        {
+            "timestamp": (base_time - timedelta(minutes=2, seconds=30)).isoformat(),
+            "type": "agent",
+            "content": "Perfect! I have all the information needed. Let me find the best service provider for your situation and dispatch them to your location."
+        }
+    ]
+    
+    return conversation
+
+def generate_mock_decisions(claim: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Generate mock decision timeline based on claim"""
+    problem_type = claim.get("problem_type", "general issue")
+    created_time = claim.get("created_at", datetime.now().isoformat())
+    
+    # Parse the created time and generate decision timestamps
+    base_time = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+    
+    decisions = [
+        {
+            "step": 1,
+            "agent": "Conversational AI Agent",
+            "decision": f"Collected problem description: {problem_type}",
+            "details": {
+                "problem_type": problem_type,
+                "confidence": 0.95,
+                "classification_method": "NLP analysis"
+            },
+            "timestamp": (base_time - timedelta(minutes=5)).isoformat()
+        },
+        {
+            "step": 2,
+            "agent": "Verification & Policy Agent",
+            "decision": "Verified customer identity and policy coverage",
+            "details": {
+                "verified": True,
+                "coverage_status": "active",
+                "roadside_covered": True,
+                "policy_number": claim.get("policy_number", "Unknown")
+            },
+            "timestamp": (base_time - timedelta(minutes=4)).isoformat()
+        },
+        {
+            "step": 3,
+            "agent": "Geolocation Agent",
+            "decision": "Located customer at coordinates",
+            "details": {
+                "latitude": CUSTOMER_LOCATION["lat"],
+                "longitude": CUSTOMER_LOCATION["lon"],
+                "method": "gps_coordinates",
+                "address_estimate": "Near Harrow, London"
+            },
+            "timestamp": (base_time - timedelta(minutes=3)).isoformat()
+        }
+    ]
+    
+    # Add dispatch decision if case was dispatched
+    if any(h.get("status") == "DISPATCHED" for h in claim.get("history", [])):
+        dispatch_history = next((h for h in claim.get("history", []) if h.get("status") == "DISPATCHED"), None)
+        if dispatch_history and isinstance(dispatch_history.get("details"), dict):
+            decisions.append({
+                "step": 4,
+                "agent": "Dispatch & Logistics Agent",
+                "decision": "Selected optimal service provider",
+                "details": {
+                    "provider": dispatch_history["details"].get("provider", "Service Provider"),
+                    "service_type": dispatch_history["details"].get("service_type", "repair_truck"),
+                    "distance_km": 2.1,
+                    "eta_minutes": dispatch_history["details"].get("eta_minutes", 25),
+                    "reasoning": f"Closest available provider for {problem_type}"
+                },
+                "timestamp": base_time.isoformat()
+            })
+            
+            decisions.append({
+                "step": 5,
+                "agent": "Customer Communications Agent",
+                "decision": "Sent dispatch confirmation and ETA",
+                "details": {
+                    "messages_sent": 2,
+                    "channels": ["SMS"],
+                    "confirmation": "Help is on the way!"
+                },
+                "timestamp": (base_time + timedelta(seconds=30)).isoformat()
+            })
+            
+            decisions.append({
+                "step": 6,
+                "agent": "Claims & Follow-up Agent",
+                "decision": "Created claim and initiated tracking",
+                "details": {
+                    "claim_id": claim.get("claim_id"),
+                    "status": "DISPATCHED",
+                    "follow_up_scheduled": True
+                },
+                "timestamp": (base_time + timedelta(minutes=1)).isoformat()
+            })
+    
+    return decisions
+
+def takeover_case(case_id: str, admin_user: str, reason: str) -> Dict[str, Any]:
+    """Take over a case for manual handling"""
+    if not os.path.exists(CLAIMS_FILE):
+        return {"success": False, "error": "Claims file not found"}
+    
+    try:
+        with open(CLAIMS_FILE, 'r') as f:
+            claims = json.load(f)
+    except:
+        return {"success": False, "error": "Failed to read claims file"}
+    
+    # Find the claim
+    claim_found = False
+    for claim in claims:
+        if claim["claim_id"] == case_id:
+            claim_found = True
+            
+            # Update claim status to taken over
+            claim["status"] = "MANUAL_TAKEOVER"
+            claim["taken_over_by"] = admin_user
+            claim["takeover_reason"] = reason
+            claim["takeover_timestamp"] = datetime.now().isoformat()
+            
+            # Add to history
+            claim["history"].append({
+                "timestamp": datetime.now().isoformat(),
+                "status": "MANUAL_TAKEOVER",
+                "details": {
+                    "admin_user": admin_user,
+                    "reason": reason,
+                    "action": "Case taken over for manual handling"
+                }
+            })
+            break
+    
+    if not claim_found:
+        return {"success": False, "error": "Case not found"}
+    
+    # Save updated claims
+    try:
+        with open(CLAIMS_FILE, 'w') as f:
+            json.dump(claims, f, indent=2)
+        return {"success": True, "message": "Case taken over successfully"}
+    except:
+        return {"success": False, "error": "Failed to update claims file"}
