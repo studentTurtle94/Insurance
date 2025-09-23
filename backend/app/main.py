@@ -97,6 +97,21 @@ async def process_claim(payload: Dict[str, Any] = Body(...)):
 async def get_status():
     return {"message": _fake_status_message}
 
+@app.post("/api/check_coverage")
+async def check_coverage(payload: Dict[str, Any] = Body(...)):
+    """Check if a problem description is covered by policy"""
+    problem_description = payload.get("problem_description", "")
+    
+    if not problem_description:
+        raise HTTPException(status_code=400, detail="problem_description is required")
+    
+    try:
+        # Use the same analysis function as the conversation agent
+        coverage_analysis = tools.analyze_problem_description(problem_description)
+        return coverage_analysis
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Coverage analysis failed: {str(e)}")
+
 @app.post("/api/realtime/client_secret")
 async def create_realtime_client_secret():
     """Generate ephemeral API key for Realtime API client connections"""

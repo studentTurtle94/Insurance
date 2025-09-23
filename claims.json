@@ -1,0 +1,34 @@
+[
+  {
+    "claim_id": "6ef804ea-19f2-4dbe-ab8d-9fb3268a9298",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "Flat tire, no spare available",
+    "status": "RESOLVED",
+    "created_at": "2025-09-21T23:34:52.467800",
+    "history": [
+      {
+        "timestamp": "2025-09-21T23:34:52.467896",
+        "status": "OPEN",
+        "details": "Claim created for Flat tire, no spare available"
+      },
+      {
+        "timestamp": "2025-09-21T23:34:52.469696",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "Guardian Angel Towing",
+          "eta_minutes": 15,
+          "service_type": "tow_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-21T23:34:52.470298",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-21T23:34:52.470168"
+        }
+      }
+    ]
+  }
+]

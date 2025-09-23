@@ -165,11 +165,22 @@ GUIDELINES:
         
         # Update state based on step
         if step == 1:
-            # Analyze problem and move to name collection
-            problem_type = analyze_problem_description(message)
+            # Analyze problem and check coverage
+            problem_analysis = analyze_problem_description(message)
             collected["problem_description"] = message
-            collected["problem_type"] = problem_type
-            print(f"[DEBUG] Step 1 -> 2: collected problem '{problem_type}'")
+            collected["problem_type"] = problem_analysis["problem_type"]
+            collected["is_covered"] = problem_analysis["is_covered"]
+            collected["coverage_reason"] = problem_analysis["coverage_reason"]
+            
+            print(f"[DEBUG] Step 1 -> 2: analyzed problem '{problem_analysis['problem_type']}', covered: {problem_analysis['is_covered']}")
+            
+            # If not covered, end the conversation here
+            if not problem_analysis["is_covered"]:
+                return {
+                    "reply": f"I understand you need help with {problem_analysis['problem_type']}. Unfortunately, {problem_analysis['coverage_reason']}. You may want to contact a service provider directly or consider upgrading your policy coverage.",
+                    "state": {"step": 5, "collected": collected, "coverage_denied": True}
+                }
+            
             return {
                 "reply": reply,
                 "state": {"step": 2, "collected": collected}
@@ -226,11 +237,21 @@ def fallback_conversational_agent(message: str, conversation_state: Dict[str, An
             "state": {"step": 1, "collected": collected}
         }
     elif step == 1:
-        problem_type = analyze_problem_description(message)
+        problem_analysis = analyze_problem_description(message)
         collected["problem_description"] = message
-        collected["problem_type"] = problem_type
+        collected["problem_type"] = problem_analysis["problem_type"]
+        collected["is_covered"] = problem_analysis["is_covered"]
+        collected["coverage_reason"] = problem_analysis["coverage_reason"]
+        
+        # If not covered, end the conversation here
+        if not problem_analysis["is_covered"]:
+            return {
+                "reply": f"I understand you need help with {problem_analysis['problem_type']}. Unfortunately, {problem_analysis['coverage_reason']}. You may want to contact a service provider directly or consider upgrading your policy coverage.",
+                "state": {"step": 5, "collected": collected, "coverage_denied": True}
+            }
+            
         return {
-            "reply": f"I understand you're having a {problem_type} issue. To verify your coverage, can you please confirm your full name as it appears on your policy?",
+            "reply": f"I understand you're having a {problem_analysis['problem_type']} issue. To verify your coverage, can you please confirm your full name as it appears on your policy?",
             "state": {"step": 2, "collected": collected}
         }
     elif step == 2:
@@ -257,22 +278,115 @@ def fallback_conversational_agent(message: str, conversation_state: Dict[str, An
             "state": {"step": 5, "collected": collected, "complete": True}
         }
 
-def analyze_problem_description(description: str) -> str:
-    """Simple NLP to categorize the problem type"""
+def analyze_problem_description(description: str) -> Dict[str, Any]:
+    """LLM-based analysis to categorize problem type and check policy coverage"""
+    client = get_openai_client()
+    
+    if not client:
+        # Fallback to simple keyword matching if no OpenAI client
+        return fallback_problem_analysis(description)
+    
+    try:
+        # Get the policy coverage details for analysis
+        policy_coverage = JOHN_DOE_POLICY["coverage"]["roadside_assistance"]["services"]
+        exclusions = JOHN_DOE_POLICY["exclusions"]
+        
+        system_prompt = f"""You are an insurance policy analyzer. Analyze the customer's problem description and determine:
+1. The specific problem type
+2. Whether it's covered under the policy
+3. If not covered, the reason why
+
+POLICY COVERAGE:
+{json.dumps(policy_coverage, indent=2)}
+
+POLICY EXCLUSIONS:
+{exclusions}
+
+Return your analysis in this exact JSON format:
+{{
+    "problem_type": "specific problem category",
+    "is_covered": true/false,
+    "coverage_reason": "explanation of coverage decision",
+    "suggested_service": "recommended service type if covered"
+}}
+
+Be strict about coverage - if fuel delivery is not covered, return is_covered: false."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Customer problem: {description}"}
+            ],
+            max_tokens=300,
+            temperature=0.1  # Low temperature for consistent analysis
+        )
+        
+        result_text = response.choices[0].message.content.strip()
+        
+        # Parse JSON response
+        try:
+            result = json.loads(result_text)
+            return {
+                "problem_type": result.get("problem_type", "general roadside assistance"),
+                "is_covered": result.get("is_covered", True),
+                "coverage_reason": result.get("coverage_reason", "Standard coverage applies"),
+                "suggested_service": result.get("suggested_service", "repair_truck")
+            }
+        except json.JSONDecodeError:
+            print(f"[DEBUG] Failed to parse LLM response as JSON: {result_text}")
+            return fallback_problem_analysis(description)
+            
+    except Exception as e:
+        print(f"[DEBUG] LLM problem analysis failed: {e}")
+        return fallback_problem_analysis(description)
+
+def fallback_problem_analysis(description: str) -> Dict[str, Any]:
+    """Fallback keyword-based analysis with policy checking"""
     desc_lower = description.lower()
     
     if any(word in desc_lower for word in ["flat", "tire", "puncture", "wheel"]):
-        return "flat tire"
+        return {
+            "problem_type": "flat tire",
+            "is_covered": True,
+            "coverage_reason": "Flat tire service is covered under policy",
+            "suggested_service": "repair_truck"
+        }
     elif any(word in desc_lower for word in ["battery", "dead", "won't start", "wont start", "no start"]):
-        return "battery issue"
+        return {
+            "problem_type": "battery issue", 
+            "is_covered": True,
+            "coverage_reason": "Battery jumpstart is covered under policy",
+            "suggested_service": "repair_truck"
+        }
     elif any(word in desc_lower for word in ["locked", "keys", "lock"]):
-        return "lockout"
+        return {
+            "problem_type": "lockout",
+            "is_covered": True, 
+            "coverage_reason": "Lockout service is covered under policy",
+            "suggested_service": "repair_truck"
+        }
     elif any(word in desc_lower for word in ["fuel", "gas", "petrol", "empty"]):
-        return "fuel delivery"
+        return {
+            "problem_type": "fuel delivery",
+            "is_covered": False,
+            "coverage_reason": "Fuel delivery is not covered under your policy",
+            "suggested_service": None
+        }
     elif any(word in desc_lower for word in ["engine", "breakdown", "broken", "tow"]):
-        return "breakdown requiring tow"
+        return {
+            "problem_type": "breakdown requiring tow",
+            "is_covered": True,
+            "coverage_reason": "Towing service is covered under policy", 
+            "suggested_service": "tow_truck"
+        }
     else:
-        return "general roadside assistance"
+        return {
+            "problem_type": "general roadside assistance",
+            "is_covered": True,
+            "coverage_reason": "General roadside assistance is covered",
+            "suggested_service": "repair_truck"
+        }
 
 # ==================== AGENT 2: Verification & Policy Agent ====================
 def verification_policy_agent(customer_name: str) -> Dict[str, Any]:
@@ -479,6 +593,15 @@ def update_claim(claim_id: str, new_status: str, details_dict: Dict[str, Any]) -
 def process_roadside_assistance_request(conversation_state: Dict[str, Any]) -> Dict[str, Any]:
     """Main orchestrator that coordinates all 6 agents."""
     collected = conversation_state.get("collected", {})
+    
+    # Check if coverage was denied during conversation
+    if conversation_state.get("coverage_denied"):
+        return {
+            "status": "denied",
+            "reason": collected.get("coverage_reason", "Service not covered under policy"),
+            "conversation_data": collected,
+            "agents_executed": ["conversational_ai_agent"]
+        }
     
     if not conversation_state.get("ready_for_dispatch"):
         return {"error": "Conversation not ready for dispatch"}

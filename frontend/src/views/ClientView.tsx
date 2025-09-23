@@ -12,11 +12,23 @@ export default function ClientView() {
   const [isListening, setIsListening] = useState(false);
   const sessionRef = useRef<RealtimeSession | null>(null);
   const agentRef = useRef<RealtimeAgent | null>(null);
+  const clientSecretRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    
     // Initialize OpenAI Realtime Agent using the official SDK
     const initRealtimeAgent = async () => {
       try {
+        // Clean up any existing connections first
+        if (sessionRef.current) {
+          console.log('Cleaning up existing session before creating new one');
+          await sessionRef.current.disconnect();
+          sessionRef.current = null;
+          agentRef.current = null;
+          setIsConnected(false);
+        }
+
         // Get ephemeral client secret from backend (secure approach)
         const clientSecretResponse = await fetch("http://localhost:8000/api/realtime/client_secret", {
           method: "POST",
@@ -29,11 +41,17 @@ export default function ClientView() {
         
         const { client_secret } = await clientSecretResponse.json();
         console.log('Got ephemeral client secret');
+        
+        // Store client secret for later use
+        clientSecretRef.current = client_secret;
+
+        // Check if component is still mounted
+        if (!isMounted) return;
 
         // Define tools for collecting insurance information
         const collectInfoTool = tool({
           name: 'collect_customer_info',
-          description: 'Collect and store customer information for roadside assistance',
+          description: 'Collect and store customer information for roadside assistance. IMPORTANT: Always check coverage for the issue before proceeding with dispatch.',
           parameters: z.object({
             name: z.string().nullable(),
             location: z.string().nullable(),
@@ -41,6 +59,44 @@ export default function ClientView() {
             ready: z.boolean().nullable()
           }),
           async execute({ name, location, issue, ready }) {
+            // If we have an issue, check coverage first
+            if (issue) {
+              try {
+                const coverageResponse = await fetch("http://localhost:8000/api/check_coverage", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ problem_description: issue }),
+                });
+                
+                if (coverageResponse.ok) {
+                  const coverageData = await coverageResponse.json();
+                  
+                  if (!coverageData.is_covered) {
+                    // Update state to show coverage denial
+                    setState((prevState: any) => {
+                      const newState = {
+                        ...prevState,
+                        collected: {
+                          ...prevState.collected,
+                          problem_description: issue,
+                          problem_type: coverageData.problem_type,
+                          is_covered: false,
+                          coverage_reason: coverageData.coverage_reason
+                        },
+                        coverage_denied: true
+                      };
+                      localStorage.setItem("copilot_state", JSON.stringify(newState));
+                      return newState;
+                    });
+                    
+                    return `I understand you need help with ${coverageData.problem_type}. Unfortunately, ${coverageData.coverage_reason}. You may want to contact a service provider directly or consider upgrading your policy coverage.`;
+                  }
+                }
+              } catch (error) {
+                console.error('Error checking coverage:', error);
+              }
+            }
+
             // Update the state with collected information
             setState((prevState: any) => {
               const newState = {
@@ -70,41 +126,58 @@ export default function ClientView() {
           instructions: `You are a helpful insurance assistant for roadside assistance. 
 
 Your job is to collect the following information from the customer:
-1. Customer name
-2. Location (where they are stranded)
-3. Description of their vehicle problem
+1. Description of their vehicle problem (FIRST - to check coverage)
+2. Customer name (only if problem is covered)
+3. Location (only if problem is covered)
+
+IMPORTANT PROCESS:
+- ALWAYS ask for the problem description first
+- When you get the problem description, immediately use the collect_customer_info tool with just the "issue" parameter
+- The tool will check coverage and tell you if the service is covered
+- If NOT covered, the tool will return a denial message - relay this message exactly to the customer and end the conversation
+- If covered, continue collecting name and location
 
 Be conversational, empathetic, and professional. Ask one question at a time and listen carefully to their responses. 
 
 When you have collected a piece of information, immediately use the collect_customer_info tool to store it.
 
-Once you have all three pieces of information (name, location, and issue), use the collect_customer_info tool with ready=true to indicate the conversation is complete.
+Once you have all three pieces of information (name, location, and covered issue), use the collect_customer_info tool with ready=true to indicate the conversation is complete.
 
 Keep your responses concise and focused on gathering the required information for dispatch.`,
           tools: [collectInfoTool],
         });
 
+        if (!isMounted) return;
         agentRef.current = agent;
 
-        // Create the Realtime Session
+        // Create the Realtime Session with manual audio control
         const session = new RealtimeSession(agent, {
           model: 'gpt-realtime',
+          config: {
+            turnDetection: {
+              type: 'semantic_vad',
+              eagerness: 'medium',
+              createResponse: true,
+              interruptResponse: true,
+            },
+          },
         });
 
+        if (!isMounted) return;
         sessionRef.current = session;
 
-        // The Agents SDK handles events automatically
-        // Set up basic connection tracking
-
-        // Connect to the session using the ephemeral key
-        await session.connect({ apiKey: client_secret });
-        
-        setIsConnected(true);
-        console.log('Realtime Agent initialized successfully');
+        // Don't auto-connect - wait for user to click start
+        if (isMounted) {
+          setIsConnected(true); // Session is ready but not connected
+          setIsListening(false); // Start with listening off
+          console.log('Realtime Agent initialized successfully - ready for manual control');
+        }
 
       } catch (error) {
         console.error("Failed to initialize Realtime Agent:", error);
-        setIsConnected(false);
+        if (isMounted) {
+          setIsConnected(false);
+        }
       }
     };
 
@@ -121,29 +194,47 @@ Keep your responses concise and focused on gathering the required information fo
     }, 3000);
 
     return () => {
+      isMounted = false;
       clearInterval(interval);
-      // Cleanup will be handled by the Agents SDK
+      // Proper cleanup of WebSocket connection
       if (sessionRef.current) {
-        console.log('Cleaning up Realtime session');
+        console.log('Cleaning up Realtime session on unmount');
+        sessionRef.current.disconnect().catch(console.error);
+        sessionRef.current = null;
+        agentRef.current = null;
+        setIsConnected(false);
       }
     };
   }, []);
 
-  // Simplified voice interaction using Agents SDK
-  const startListening = () => {
-    if (!isConnected || !sessionRef.current) {
-      alert("Not connected to OpenAI Realtime API. Please refresh the page.");
+  const startListening = async () => {
+    if (!isConnected || !sessionRef.current || !clientSecretRef.current) {
+      alert("Not ready to connect. Please refresh the page.");
       return;
     }
 
-    setIsListening(true);
-    // The Agents SDK handles all audio processing automatically
-    console.log('Voice interaction active - speak now!');
+    try {
+      // Connect to start listening
+      await sessionRef.current.connect({ apiKey: clientSecretRef.current });
+      setIsListening(true);
+      console.log('Connected to session - started listening');
+    } catch (error) {
+      console.error('Failed to start listening:', error);
+      alert('Failed to start microphone. Please check permissions.');
+    }
   };
 
-  const stopListening = () => {
-    setIsListening(false);
-    console.log('Voice interaction stopped');
+  const stopListening = async () => {
+    if (!sessionRef.current) return;
+
+    try {
+      // Interrupt to stop listening while keeping connection alive
+      await sessionRef.current.interrupt();
+      setIsListening(false);
+      console.log('Interrupted session - stopped listening');
+    } catch (error) {
+      console.error('Failed to stop listening:', error);
+    }
   };
 
   const sendToConversation = async (message: string) => {
@@ -190,15 +281,14 @@ Keep your responses concise and focused on gathering the required information fo
       (localStorage.getItem("copilot_transcript") || "") + `\nClient: ${text}`
     );
 
-    // Send text message through Agents SDK
+    // Send text message through Agents SDK only - no fallback to avoid double audio
     try {
       await sessionRef.current.sendMessage(text);
       setInput("");
     } catch (error) {
       console.error('Error sending text message:', error);
-      // Fallback to original API
-      await sendToConversation(text);
       setInput("");
+      // Don't fall back to avoid double audio
     }
   };
 
@@ -241,21 +331,26 @@ Keep your responses concise and focused on gathering the required information fo
               disabled={!isConnected}
               style={{ 
                 backgroundColor: isListening ? '#ff4444' : isConnected ? '#4CAF50' : '#cccccc',
-                color: 'white'
+                color: 'white',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: isConnected ? 'pointer' : 'not-allowed'
               }}
             >
-              {isListening ? 'Stop Listening' : 'Start Speaking'}
+              {isListening ? '🛑 Stop Listening' : '🎤 Start Speaking'}
             </button>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type here if mic not available..."
+              placeholder="Type here if voice not working..."
+              onKeyDown={(e) => e.key === 'Enter' && sendText()}
             />
-            <button onClick={sendText}>Send</button>
+            <button onClick={sendText} disabled={!input.trim()}>Send</button>
           </div>
           <div style={{ fontSize: '12px', marginTop: '8px', color: isConnected ? 'green' : 'red' }}>
             Status: {isConnected ? 'Connected via OpenAI Agents SDK' : 'Disconnected'}
-            {isListening && ' • Listening...'}
+            {isListening && ' • 🎤 Listening...'}
           </div>
         </section>
 
