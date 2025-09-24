@@ -149,9 +149,42 @@ async def conversation(payload: Dict[str, Any] = Body(default={})):
     """Enhanced conversation using Agent 1: Conversational AI Agent"""
     message = (payload or {}).get("message", "").strip()
     state = (payload or {}).get("state") or {}
+    conversation_id = (payload or {}).get("conversation_id")
     
     # Use the new conversational AI agent
     result = tools.conversational_ai_agent(message, state)
+    
+    # Save conversation messages if conversation_id is provided
+    if conversation_id and message:
+        # Ensure conversation exists
+        collected = state.get("collected", {})
+        customer_name = collected.get("customer_name", "Unknown Customer")
+        problem_type = collected.get("problem_type", "Unknown")
+        
+        # Create or update conversation entry
+        conversation_data = tools.create_conversation_entry(
+            conversation_id, 
+            customer_name, 
+            problem_type
+        )
+        tools.save_conversation(conversation_id, conversation_data)
+        
+        # Add user message
+        tools.add_message_to_conversation(
+            conversation_id,
+            "user",
+            message,
+            "Customer"
+        )
+        
+        # Add agent response
+        if result.get("reply"):
+            tools.add_message_to_conversation(
+                conversation_id,
+                "agent",
+                result["reply"],
+                "AI Agent"
+            )
     
     return result
 
@@ -337,6 +370,45 @@ async def add_conversation_message(conversation_id: str, payload: Dict[str, Any]
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to add message: {str(e)}")
+
+@app.post("/api/admin/conversations/{conversation_id}/sync_history")
+async def sync_conversation_history(conversation_id: str, payload: Dict[str, Any] = Body(...)):
+    """Sync complete conversation history from frontend"""
+    try:
+        messages = payload.get("messages", [])
+        customer_name = payload.get("customer_name", "Customer")
+        problem_type = payload.get("problem_type", "Roadside Assistance")
+        
+        # Create or update conversation entry
+        conversation_data = tools.create_conversation_entry(
+            conversation_id, 
+            customer_name, 
+            problem_type
+        )
+        
+        # Clear existing messages and add new ones
+        conversation_data["messages"] = []
+        for msg in messages:
+            conversation_data["messages"].append({
+                "timestamp": msg.get("timestamp"),
+                "type": msg.get("type"),
+                "content": msg.get("content"),
+                "sender": msg.get("sender")
+            })
+        
+        # Update last_updated timestamp
+        conversation_data["last_updated"] = datetime.now().isoformat()
+        
+        # Save the complete conversation
+        success = tools.save_conversation(conversation_id, conversation_data)
+        
+        if success:
+            return {"message": "Conversation history synced successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save conversation")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to sync conversation history: {str(e)}")
 
 @app.post("/api/admin/conversations/{conversation_id}/admin_message")
 async def send_admin_message(conversation_id: str, payload: Dict[str, Any] = Body(...)):

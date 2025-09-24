@@ -38,6 +38,7 @@ export default function ClientView() {
   const websocketRef = useRef<WebSocket | null>(null);
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
   const [isHandedOffToHuman, setIsHandedOffToHuman] = useState(false);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -85,6 +86,47 @@ export default function ClientView() {
             ready: z.boolean().nullable()
           }),
           async execute({ location, issue, ready }) {
+            
+            // Helper function to save conversation messages
+            const saveConversationMessage = async (type: 'user' | 'agent', content: string, sender: string) => {
+              if (!conversationIdRef.current) return;
+              
+              try {
+                // Ensure conversation exists first
+                await fetch("http://localhost:8000/api/admin/conversations", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    conversation_id: conversationIdRef.current,
+                    customer_name: "Customer",
+                    problem_type: issue || "Roadside Assistance"
+                  }),
+                }).catch(() => {
+                  // Ignore errors - conversation might already exist
+                });
+
+                // Add message to conversation
+                await fetch(`http://localhost:8000/api/admin/conversations/${conversationIdRef.current}/message`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    message_type: type,
+                    content: content,
+                    sender: sender
+                  }),
+                });
+              } catch (error) {
+                console.error('Error saving conversation message:', error);
+              }
+            };
+
+            // Save user messages when information is provided
+            if (issue) {
+              await saveConversationMessage('user', issue, 'Customer');
+            }
+            if (location) {
+              await saveConversationMessage('user', `Location: ${location}`, 'Customer');
+            }
 
             // Check for human handoff request first - regardless of what parameter it comes in
             const checkForHumanRequest = (text: string) => {
@@ -106,6 +148,9 @@ export default function ClientView() {
               
               // First, let the LLM respond with a handoff message before interrupting
               const handoffMessage = "I understand you'd like to speak with a human representative. Let me connect you with one of our customer service agents who can assist you personally. Please hold on while I transfer your conversation.";
+              
+              // Save the handoff message
+              await saveConversationMessage('agent', handoffMessage, 'AI Agent');
               
               // Add a small delay to let the LLM message be processed and displayed
               setTimeout(async () => {
@@ -220,7 +265,12 @@ export default function ClientView() {
                       return newState;
                     });
                     
-                    return `I understand you need help with ${coverageData.problem_type}. Unfortunately, ${coverageData.coverage_reason}. You may want to contact a service provider directly or consider upgrading your policy coverage.`;
+                    const denialMessage = `I understand you need help with ${coverageData.problem_type}. Unfortunately, ${coverageData.coverage_reason}. You may want to contact a service provider directly or consider upgrading your policy coverage.`;
+                    
+                    // Save the denial message
+                    await saveConversationMessage('agent', denialMessage, 'AI Agent');
+                    
+                    return denialMessage;
                   }
                 }
               } catch (error) {
@@ -247,7 +297,12 @@ export default function ClientView() {
               return newState;
             });
             
-            return `Information collected successfully. ${location ? `Location: ${location}. ` : ''}${issue ? `Issue: ${issue}. ` : ''}`;
+            const responseMessage = `Information collected successfully. ${location ? `Location: ${location}. ` : ''}${issue ? `Issue: ${issue}. ` : ''}`;
+            
+            // Save agent response
+            await saveConversationMessage('agent', responseMessage, 'AI Agent');
+            
+            return responseMessage;
           },
         });
 
@@ -406,6 +461,14 @@ Keep your responses concise and focused on gathering the required information fo
           
           // Update chat messages with the complete history
           setChatMessages(newChatMessages);
+          
+          // Debounced sync to backend (avoid too many API calls)
+          if (syncTimeoutRef.current) {
+            clearTimeout(syncTimeoutRef.current);
+          }
+          syncTimeoutRef.current = setTimeout(() => {
+            syncConversationHistory(newChatMessages);
+          }, 2000); // Wait 2 seconds after last update
           
           // Auto-scroll to bottom
           setTimeout(() => {
@@ -609,6 +672,40 @@ Keep your responses concise and focused on gathering the required information fo
       });
     } catch (error) {
       console.error('Failed to create conversation:', error);
+    }
+  };
+
+  // Sync complete conversation history to backend
+  const syncConversationHistory = async (messages: typeof chatMessages) => {
+    if (!conversationIdRef.current) return;
+    
+    try {
+      // Filter out the initial greeting and prepare messages for backend
+      const messagesToSync = messages
+        .filter(message => message.id !== 'initial')
+        .map(message => ({
+          timestamp: message.timestamp.toISOString(),
+          type: message.type === 'user' ? 'user' : 
+                message.type === 'agent' ? 'agent' : 'system',
+          content: message.content,
+          sender: message.type === 'user' ? 'Customer' : 
+                 message.type === 'agent' ? 'AI Agent' : 'System'
+        }));
+
+      // Sync complete conversation history using the new endpoint
+      await fetch(`http://localhost:8000/api/admin/conversations/${conversationIdRef.current}/sync_history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: messagesToSync,
+          customer_name: state?.collected?.customer_name || "Customer",
+          problem_type: state?.collected?.problem_type || "Roadside Assistance"
+        }),
+      });
+      
+      console.log(`Synced ${messagesToSync.length} messages to backend`);
+    } catch (error) {
+      console.error('Failed to sync conversation history:', error);
     }
   };
 

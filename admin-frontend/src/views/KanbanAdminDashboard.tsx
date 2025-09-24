@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, MessageSquare, User, Clock, CheckCircle, AlertTriangle, Send } from 'lucide-react';
+import { RefreshCw, User, CheckCircle, AlertTriangle, Send } from 'lucide-react';
 
 interface Message {
   timestamp: string;
@@ -25,6 +25,7 @@ interface ConversationsData {
   open: Conversation[];
   requires_human: Conversation[];
   closed: Conversation[];
+  [key: string]: Conversation[];
 }
 
 export default function KanbanAdminDashboard() {
@@ -45,13 +46,40 @@ export default function KanbanAdminDashboard() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:8000/api/admin/conversations');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch conversations: ${response.statusText}`);
+      // Try to fetch from backend first
+      try {
+        const response = await fetch('http://localhost:8000/api/admin/conversations');
+        if (response.ok) {
+          const data = await response.json();
+          setConversations(data.conversations || { open: [], requires_human: [], closed: [] });
+          return;
+        }
+      } catch (backendError) {
+        console.log('Backend not available, using local data');
       }
       
-      const data = await response.json();
-      setConversations(data.conversations || { open: [], requires_human: [], closed: [] });
+      // Fallback: load from local conversations.json file
+      try {
+        const response = await fetch('/conversations.json');
+        if (response.ok) {
+          const allConversations = await response.json();
+          
+          // Group conversations by status
+          const groupedConversations = {
+            open: allConversations.filter((conv: Conversation) => conv.status === 'OPEN'),
+            requires_human: allConversations.filter((conv: Conversation) => conv.status === 'REQUIRES_HUMAN'),
+            closed: allConversations.filter((conv: Conversation) => conv.status === 'CLOSED')
+          };
+          
+          setConversations(groupedConversations);
+          setError('Using local data (backend unavailable)');
+          return;
+        }
+      } catch (localError) {
+        console.log('Local data not available either');
+      }
+      
+      throw new Error('No data source available');
     } catch (err) {
       console.error('Error fetching conversations:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch conversations');
@@ -411,11 +439,23 @@ export default function KanbanAdminDashboard() {
         </div>
       </div>
       <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
-        {conversation.messages.length} messages
+        {conversation.messages.length} message{conversation.messages.length !== 1 ? 's' : ''}
+        {conversation.messages.length > 0 && (
+          <span style={{ marginLeft: '8px', color: '#999' }}>
+            • Last: {getTimeAgo(conversation.messages[conversation.messages.length - 1].timestamp)}
+          </span>
+        )}
       </div>
-      {conversation.messages.length > 0 && (
+      {conversation.messages.length > 0 ? (
         <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>
-          Last: "{conversation.messages[conversation.messages.length - 1].content.substring(0, 50)}..."
+          <strong>
+            {conversation.messages[conversation.messages.length - 1].type === 'user' ? 'Customer' : 
+             conversation.messages[conversation.messages.length - 1].type === 'admin' ? 'Admin' : 'AI'}:
+          </strong> "{conversation.messages[conversation.messages.length - 1].content.substring(0, 60)}..."
+        </div>
+      ) : (
+        <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
+          No messages yet
         </div>
       )}
     </div>
@@ -560,26 +600,33 @@ export default function KanbanAdminDashboard() {
 
       {/* Chat Modal */}
       {selectedConversation && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            width: '600px',
-            maxHeight: '80vh',
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
             display: 'flex',
-            flexDirection: 'column'
-          }}>
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setSelectedConversation(null)}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              width: '700px',
+              maxHeight: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div style={{
               padding: '20px',
@@ -613,36 +660,73 @@ export default function KanbanAdminDashboard() {
               flex: 1,
               padding: '20px',
               overflowY: 'auto',
-              maxHeight: '400px'
+              maxHeight: '450px',
+              backgroundColor: '#f8f9fa'
             }}>
-              {selectedConversation.messages.map((message, index) => (
-                <div
-                  key={index}
-                  style={{
-                    marginBottom: '16px',
-                    display: 'flex',
-                    justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start'
-                  }}
-                >
-                  <div style={{
-                    maxWidth: '70%',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    backgroundColor: message.type === 'user' ? '#007bff' : 
-                                   message.type === 'admin' ? '#28a745' : '#f1f3f5',
-                    color: message.type === 'user' || message.type === 'admin' ? 'white' : 'black'
-                  }}>
-                    <div style={{ fontSize: '14px' }}>{message.content}</div>
+              {selectedConversation.messages.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  color: '#666',
+                  fontStyle: 'italic',
+                  marginTop: '50px'
+                }}>
+                  No messages in this conversation yet
+                </div>
+              ) : (
+                selectedConversation.messages.map((message, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start',
+                      marginBottom: '16px',
+                      position: 'relative'
+                    }}
+                  >
                     <div style={{
-                      fontSize: '10px',
-                      opacity: 0.7,
-                      marginTop: '4px'
+                      maxWidth: '75%',
+                      padding: '12px 16px',
+                      borderRadius: message.type === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                      backgroundColor: message.type === 'user' ? '#007bff' : 
+                                     message.type === 'admin' ? '#28a745' : '#e9ecef',
+                      color: message.type === 'user' || message.type === 'admin' ? 'white' : '#333',
+                      fontSize: '14px',
+                      lineHeight: '1.4',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      position: 'relative'
                     }}>
-                      {message.sender} • {formatTime(message.timestamp)}
+                      {/* Message content */}
+                      <div style={{ marginBottom: '4px' }}>
+                        {message.content}
+                      </div>
+                      
+                      {/* Message metadata */}
+                      <div style={{
+                        fontSize: '10px',
+                        opacity: 0.7,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        marginTop: '6px'
+                      }}>
+                        <span style={{ 
+                          fontWeight: '500',
+                          textTransform: 'capitalize'
+                        }}>
+                          {message.type === 'user' ? 'Customer' : 
+                           message.type === 'admin' ? (message.sender || 'Admin') :
+                           message.type === 'agent' ? 'AI Assistant' : 
+                           message.sender || message.type}
+                        </span>
+                        <span>•</span>
+                        <span>{formatTime(message.timestamp)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
+              {/* Auto-scroll anchor */}
+              <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
             </div>
 
             {/* Admin Actions */}
