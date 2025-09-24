@@ -1,17 +1,19 @@
 # Insurance Co-Pilot (Proto-Agent)
 
-A functional prototype demonstrating a modular, agent-like architecture for an insurance claims co-pilot.
+A functional prototype demonstrating a modular, agent-like architecture for an insurance claims co-pilot with real-time voice interaction and comprehensive admin dashboard.
 
 ## Stack
 - Backend: FastAPI (Python)
 - Frontend: React + Vite (TypeScript)
-- Architecture: Modular "proto-agent" functions orchestrated by API endpoints, designed to later port to LangGraph.
+- Admin Dashboard: React + TypeScript
+- Architecture: Modular "proto-agent" functions orchestrated by API endpoints, designed to later port to LangGraph
+- Real-time Voice: OpenAI Realtime API with secure ephemeral authentication
 
 ## Getting Started
 
 ### Backend
 ```bash
-cd /Users/mbranescu/Desktop/projects/insurance
+cd <project-directory>
 source .venv/bin/activate
 
 # Install dependencies (including httpx for Realtime API)
@@ -23,22 +25,33 @@ export OPENAI_API_KEY=your_openai_api_key_here
 # Start the API (use main:app with the app dir)
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload --app-dir backend/app
 ```
-Endpoints:
+
+**API Endpoints:**
 - GET `/health` → { status: "ok" }
 - POST `/api/conversation` → simple dialog state machine
 - POST `/api/process_claim` → orchestrator (policy check → damage assessment → garage locator → client update)
 - GET `/api/get_status` → latest client-facing SMS-like message
-- **POST `/api/realtime/client_secret` → generates ephemeral API keys for secure Realtime API connections**
+- POST `/api/realtime/client_secret` → generates ephemeral API keys for secure Realtime API connections
+- GET `/api/admin/cases` → fetch all cases for admin dashboard
+- POST `/api/admin/cases/{case_id}/takeover` → manual case takeover
 
-### Frontend
+### Client Frontend (Port 5173)
 ```bash
-cd /Users/mbranescu/Desktop/projects/insurance/frontend
+cd frontend
 npm install
 npm run dev
 ```
 Open `http://localhost:5173`.
 
-Node note: Versions are pinned for Node 18 (Vite 5 + React 18). With Node 20+, you can upgrade Vite/React and router.
+### Admin Dashboard (Port 5175)
+```bash
+cd admin-frontend
+npm install
+npm run dev
+```
+Open `http://localhost:5175`.
+
+**Node Requirements:** Versions are pinned for Node 18 (Vite 5 + React 18). With Node 20+, you can upgrade Vite/React and router.
 
 ## Proto-Agent Architecture
 
@@ -56,16 +69,45 @@ Node note: Versions are pinned for Node 18 (Vite 5 + React 18). With Node 20+, y
   4) Aggregate results and call `generate_client_update_tool(...)`.
   5) Store the message for `/api/get_status`.
 
+## Features
+
+### Client Interface
+- **🎙️ Real-time Voice Conversations**: OpenAI Realtime API with secure ephemeral authentication
+- **🤖 Intelligent Agent**: Custom tools for collecting insurance information
+- **📝 Real-time Transcription**: Automatic speech-to-text and text-to-speech
+- **💬 Text Fallback**: Alternative text input when voice isn't available
+- **🔄 Live Status Updates**: Real-time connection and recording indicators
+- **📱 Responsive Design**: Works across desktop and mobile devices
+
+### Admin Dashboard
+- **📊 Cases Overview**: Grid view of all cases with real-time status updates
+- **🔍 Case Details**: Complete conversation history and agent decision timeline
+- **👥 Manual Takeover**: Human agents can take control of active cases
+- **🔄 Auto-refresh**: Dashboard updates every 30 seconds
+- **📈 Status Tracking**: Audit trail of all case status changes
+- **🎨 Modern UI**: Glassmorphism design with backdrop filters
+
 ### Conversation Flow
-- POST `/api/conversation` (steps: name → location → issue → done)
-- **Frontend uses OpenAI Realtime API for real-time voice conversations** with secure ephemeral key authentication
-- Transcript/state/analysis shared via `localStorage` and rendered on `/dashboard`.
+- **Voice-first Experience**: Natural conversation with AI assistant
+- **Smart Coverage Check**: Immediate verification of policy coverage
+- **Human Handoff**: Instant escalation when customer requests human support
+- **Location Collection**: GPS or manual location input for dispatch
+- **Real-time Processing**: Live transcript and analysis during conversation
 
 ## Demo Flow
-1. Open Client View (`/`). Click Speak or type answers.
-2. After providing name, location, and issue, click "Submit Claim".
-3. Open Dashboard (`/dashboard`) to see transcript, extracted info, and AI analysis.
-4. Client View shows a SMS-like message from `/api/get_status`.
+
+### Client Experience
+1. Open Client View (`http://localhost:5173`)
+2. Click "Start Conversation" for voice or use text input
+3. Describe your vehicle problem (coverage checked immediately)
+4. Provide location if service is covered
+5. Receive real-time updates and dispatch information
+
+### Admin Experience
+1. Open Admin Dashboard (`http://localhost:5175`)
+2. View all active cases in real-time
+3. Click "View Details" to see conversation history and agent decisions
+4. Use "Take Over" to manually handle cases requiring human intervention
 
 ## LangGraph-Ready
 - Tools are pure, clearly-typed functions with narrow IO.
