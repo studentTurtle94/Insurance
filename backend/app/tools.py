@@ -92,7 +92,7 @@ YOUR ROLE BY STEP:
 - Step 1.5: If clarification needed about potential exclusions, ask tactful questions about circumstances.
 - Step 2: Customer provided name. Thank them, verify their policy coverage, and ask for their exact location (street name, landmarks, etc.) all in one response.
 - Step 3: (Deprecated - skip to step 4)
-- Step 4: Location received. Confirm you have everything needed to dispatch help.
+- Step 4: Location received. Thank them and confirm you have all the information needed. DO NOT mention dispatch - just say you'll process their request.
 - Step 5: Process complete.
 
 GUIDELINES:
@@ -352,7 +352,7 @@ def fallback_conversational_agent(message: str, conversation_state: Dict[str, An
     elif step == 4:
         collected["location_description"] = message
         return {
-            "reply": "Perfect! I have all the information needed. Let me find the best service provider for your situation and dispatch them to your location.",
+            "reply": "Perfect! I have all the information needed to process your roadside assistance request. Let me review your case now.",
             "state": {"step": 5, "collected": collected, "ready_for_dispatch": True}
         }
     else:
@@ -772,18 +772,39 @@ def dispatch_logistics_agent(problem_type: str, customer_location: Dict[str, flo
         }
 
 # ==================== AGENT 5: Customer Communications Agent ====================
-def send_customer_notification(message_type: str, provider_name: str = None, eta: int = None) -> str:
+def send_customer_notification(message_type: str, provider_name: str = None, eta: int = None, service_type: str = None, location: str = None) -> str:
     """Sends notifications to customer."""
     customer_name = "John Doe"
     
     if message_type == "DISPATCHED":
-        return f"[COMMUNICATION] SMS to {customer_name}: Help is on the way! '{provider_name}' has been dispatched."
+        service_description = "repair truck" if service_type == "repair_truck" else "tow truck" if service_type == "tow_truck" else "service vehicle"
+        location_text = f" to {location}" if location else " to your location"
+        return f"[COMMUNICATION] SMS to {customer_name}: Help is on the way! A {service_description} from '{provider_name}' has been dispatched{location_text}."
     elif message_type == "ETA_UPDATE":
         return f"[COMMUNICATION] SMS to {customer_name}: Your service vehicle will arrive in approximately {eta} minutes."
     elif message_type == "ARRIVAL":
         return f"[COMMUNICATION] SMS to {customer_name}: Your service vehicle has arrived."
+    elif message_type == "HELP_CONFIRMATION":
+        service_description = "repair truck" if service_type == "repair_truck" else "tow truck" if service_type == "tow_truck" else "service vehicle"
+        location_text = f" to {location}" if location else " to your location"
+        return f"We found a {service_description} from '{provider_name}' that can help you{location_text}. This will arrive in approximately {eta} minutes. Would you like us to dispatch this help to you? Please confirm yes or no."
+    elif message_type == "CAB_OFFER":
+        return "While you wait for the service vehicle, would you like us to arrange a cab for you? Please confirm yes or no."
     else:
         return f"[COMMUNICATION] SMS to {customer_name}: Status update - {message_type}"
+
+# ==================== CAB SERVICE FUNCTIONS ====================
+def request_cab_service(customer_location: Dict[str, float], destination: str = "Home") -> Dict[str, Any]:
+    """Mock cab service request - doesn't actually call any service"""
+    return {
+        "cab_requested": True,
+        "service": "Mock Cab Service",
+        "eta_minutes": 15,
+        "pickup_location": f"Lat: {customer_location['lat']}, Lon: {customer_location['lon']}",
+        "destination": destination,
+        "status": "confirmed",
+        "message": "A cab has been requested and will arrive in approximately 15 minutes."
+    }
 
 # ==================== AGENT 6: Claims & Follow-up Agent ====================
 def create_claim(policy_holder: str, policy_number: str, problem_type: str) -> str:
@@ -897,11 +918,20 @@ def process_roadside_assistance_request(conversation_state: Dict[str, Any]) -> D
     if not dispatch["dispatched"]:
         return {**results, "status": "failed", "reason": "No available service providers"}
     
-    # Agent 5: Customer Communications
-    comm_dispatched = send_customer_notification("DISPATCHED", dispatch["provider"]["name"])
-    comm_eta = send_customer_notification("ETA_UPDATE", eta=dispatch["eta_minutes"])
-    results["communications"] = [comm_dispatched, comm_eta]
+    # Agent 5: Customer Communications - Ask for confirmation first
+    location_description = collected.get("location_description", "your location")
+    help_confirmation = send_customer_notification(
+        "HELP_CONFIRMATION", 
+        provider_name=dispatch["provider"]["name"],
+        eta=dispatch["eta_minutes"],
+        service_type=dispatch["service_type"],
+        location=location_description
+    )
+    cab_offer = send_customer_notification("CAB_OFFER")
+    
+    results["communications"] = [help_confirmation, cab_offer]
     results["agents_executed"].append("customer_communications_agent")
+    results["awaiting_confirmation"] = True
     
     # Agent 6: Claims & Follow-up
     claim_id = create_claim(
@@ -935,6 +965,94 @@ def process_roadside_assistance_request(conversation_state: Dict[str, Any]) -> D
     }
     
     return results
+
+def confirm_dispatch_and_cab(conversation_state: Dict[str, Any], help_confirmed: bool, cab_requested: bool) -> Dict[str, Any]:
+    """Handle user confirmations and complete dispatch if confirmed"""
+    collected = conversation_state.get("collected", {})
+    
+    # Record the customer's confirmation choices
+    collected["help_confirmed"] = help_confirmed
+    collected["cab_requested"] = cab_requested
+    collected["confirmation_timestamp"] = datetime.now().isoformat()
+    
+    if not help_confirmed:
+        return {
+            "status": "cancelled",
+            "message": "Service request cancelled by customer",
+            "conversation_data": collected
+        }
+    
+    # Re-run the dispatch process to get the same provider
+    location = geolocation_agent()
+    dispatch = dispatch_logistics_agent(
+        collected.get("problem_type", "general roadside assistance"),
+        {"lat": location["latitude"], "lon": location["longitude"]}
+    )
+    
+    if not dispatch["dispatched"]:
+        return {"status": "failed", "reason": "No available service providers"}
+    
+    # Send dispatch confirmation
+    location_description = collected.get("location_description", "your location")
+    comm_dispatched = send_customer_notification(
+        "DISPATCHED", 
+        provider_name=dispatch["provider"]["name"],
+        service_type=dispatch["service_type"],
+        location=location_description
+    )
+    comm_eta = send_customer_notification("ETA_UPDATE", eta=dispatch["eta_minutes"])
+    
+    communications = [comm_dispatched, comm_eta]
+    
+    # Handle cab request if confirmed
+    cab_result = None
+    if cab_requested:
+        cab_result = request_cab_service({"lat": location["latitude"], "lon": location["longitude"]})
+        communications.append(f"[COMMUNICATION] SMS to John Doe: {cab_result['message']}")
+    
+    # Create claim
+    verification = verification_policy_agent(collected.get("customer_name", ""))
+    claim_id = create_claim(
+        verification["policy"]["policy_holder"],
+        verification["policy"]["policy_number"],
+        collected.get("problem_type", "general roadside assistance")
+    )
+    
+    # Update claim with dispatch details including customer confirmations
+    update_claim(claim_id, "DISPATCHED", {
+        "provider": dispatch["provider"]["name"],
+        "eta_minutes": dispatch["eta_minutes"],
+        "service_type": dispatch["service_type"],
+        "cab_requested": cab_requested,
+        "customer_confirmations": {
+            "help_confirmed": help_confirmed,
+            "cab_requested": cab_requested,
+            "confirmation_timestamp": collected["confirmation_timestamp"]
+        }
+    })
+    
+    # Simulate arrival
+    update_claim(claim_id, "RESOLVED", {
+        "resolution": "Service provider arrived and assisted customer",
+        "completion_time": datetime.now().isoformat()
+    })
+    
+    return {
+        "status": "success",
+        "communications": communications,
+        "dispatch": dispatch,
+        "cab": cab_result,
+        "claim": {"claim_id": claim_id, "status": "DISPATCHED"},
+        "summary": {
+            "provider_name": dispatch["provider"]["name"],
+            "eta_minutes": dispatch["eta_minutes"],
+            "claim_id": claim_id,
+            "service_type": dispatch["service_type"],
+            "cab_requested": cab_requested,
+            "help_confirmed": help_confirmed,
+            "confirmation_timestamp": collected["confirmation_timestamp"]
+        }
+    }
 
 # ==================== ADMIN FUNCTIONS ====================
 def get_all_cases_for_admin() -> List[Dict[str, Any]]:
@@ -999,7 +1117,22 @@ def generate_mock_conversation(claim: Dict[str, Any]) -> List[Dict[str, Any]]:
         {
             "timestamp": (base_time - timedelta(minutes=2, seconds=30)).isoformat(),
             "type": "agent",
-            "content": "Perfect! I have all the information needed. Let me find the best service provider for your situation and dispatch them to your location."
+            "content": "Perfect! I have all the information needed to process your roadside assistance request. Let me review your case now."
+        },
+        {
+            "timestamp": (base_time - timedelta(minutes=2)).isoformat(),
+            "type": "agent",
+            "content": "We found a repair truck from 'Awesome Roadside Repair' that can help you to Harrow Road near the main shopping area. This will arrive in approximately 25 minutes. Would you like us to dispatch this help to you? Please confirm yes or no."
+        },
+        {
+            "timestamp": (base_time - timedelta(minutes=1, seconds=45)).isoformat(),
+            "type": "agent",
+            "content": "While you wait for the service vehicle, would you like us to arrange a cab for you? Please confirm yes or no."
+        },
+        {
+            "timestamp": (base_time - timedelta(minutes=1, seconds=30)).isoformat(),
+            "type": "user",
+            "content": "Yes, send help (no cab needed)"
         }
     ]
     

@@ -39,6 +39,8 @@ export default function ClientView() {
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
   const [isHandedOffToHuman, setIsHandedOffToHuman] = useState(false);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showConfirmationButtons, setShowConfirmationButtons] = useState(false);
+  const [confirmationData, setConfirmationData] = useState<any>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -642,19 +644,6 @@ Keep your responses concise and focused on gathering the required information fo
     setChatMessages(prev => prev.filter(msg => msg.id !== messageId));
   };
 
-  const removeAgentMessages = () => {
-    if (sessionRef.current) {
-      // Remove all assistant messages from session history
-      sessionRef.current.updateHistory((currentHistory) => {
-        return currentHistory.filter(
-          (item) => !(item.type === 'message' && item.role === 'assistant')
-        );
-      });
-    }
-    
-    // Also update local state but preserve initial greeting
-    setChatMessages(prev => prev.filter(msg => msg.type !== 'agent' || msg.id === 'initial'));
-  };
 
   // Helper functions for conversation tracking
   const createConversation = async () => {
@@ -898,6 +887,101 @@ Keep your responses concise and focused on gathering the required information fo
     });
     const data = await res.json();
     localStorage.setItem("copilot_analysis", JSON.stringify(data));
+    
+    // Check if we need confirmation from user
+    if (data.awaiting_confirmation) {
+      setConfirmationData(data);
+      setShowConfirmationButtons(true);
+      
+      // Add confirmation messages to chat
+      if (data.communications) {
+        const saveConfirmationQuestions = async () => {
+          for (const comm of data.communications) {
+            const confirmMessage = {
+              id: `confirm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              type: 'agent' as const,
+              content: comm,
+              timestamp: new Date(),
+              metadata: {}
+            };
+            setChatMessages(prev => [...prev, confirmMessage]);
+            
+            // Also save each confirmation question to conversation history
+            await addMessageToConversation("agent", comm);
+          }
+        };
+        
+        saveConfirmationQuestions();
+      }
+    } else {
+      // Show communications in the transcript for completed requests
+      if (data.communications) {
+        const existingTranscript = localStorage.getItem("copilot_transcript") || "";
+        const newMessages = data.communications.join("\n");
+        localStorage.setItem("copilot_transcript", existingTranscript + "\n" + newMessages);
+      }
+    }
+  };
+
+  const handleConfirmation = async (helpConfirmed: boolean, cabRequested: boolean) => {
+    if (!confirmationData) return;
+    
+    // First, record the customer's confirmation choice as a message
+    const confirmationText = helpConfirmed 
+      ? (cabRequested ? "Yes, send help and request a cab" : "Yes, send help (no cab needed)")
+      : "No, cancel the request";
+    
+    // Add customer's confirmation response to chat
+    const confirmationMessage = {
+      id: `user_confirm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'user' as const,
+      content: confirmationText,
+      timestamp: new Date(),
+      metadata: {}
+    };
+    setChatMessages(prev => [...prev, confirmationMessage]);
+    
+    // Save the confirmation response to conversation history
+    await addMessageToConversation("user", confirmationText);
+    
+    const res = await fetch("http://localhost:8000/api/confirm_dispatch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        conversation_state: state,
+        help_confirmed: helpConfirmed,
+        cab_requested: cabRequested
+      }),
+    });
+    const data = await res.json();
+    localStorage.setItem("copilot_analysis", JSON.stringify(data));
+    
+    // Hide confirmation buttons
+    setShowConfirmationButtons(false);
+    setConfirmationData(null);
+    
+    // Add response messages to chat
+    if (data.communications) {
+      data.communications.forEach((comm: string) => {
+        const responseMessage = {
+          id: `response_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'agent' as const,
+          content: comm,
+          timestamp: new Date(),
+          metadata: {}
+        };
+        setChatMessages(prev => [...prev, responseMessage]);
+      });
+    } else if (data.message) {
+      const responseMessage = {
+        id: `response_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'agent' as const,
+        content: data.message,
+        timestamp: new Date(),
+        metadata: {}
+      };
+      setChatMessages(prev => [...prev, responseMessage]);
+    }
     
     // Show communications in the transcript
     if (data.communications) {
@@ -1174,6 +1258,65 @@ Keep your responses concise and focused on gathering the required information fo
             ➤
           </button>
         </div>
+
+        {/* Confirmation Buttons */}
+        {showConfirmationButtons && (
+          <div style={{
+            marginTop: '12px',
+            padding: '16px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ marginBottom: '12px', fontSize: '14px', fontWeight: '500' }}>
+              Please confirm your choices:
+            </div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => handleConfirmation(true, false)}
+                style={{
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                ✓ Yes, send help (no cab)
+              </button>
+              <button
+                onClick={() => handleConfirmation(true, true)}
+                style={{
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                ✓ Yes, send help + cab
+              </button>
+              <button
+                onClick={() => handleConfirmation(false, false)}
+                style={{
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                ✗ No, cancel request
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Status and Info */}
         <div style={{ 

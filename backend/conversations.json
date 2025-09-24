@@ -1,122 +1,47 @@
 [
   {
-    "conversation_id": "conv_1758701788508_w9apy2det",
+    "conversation_id": "conv_1758706929130_bnmx91ufh",
     "customer_name": "John Doe",
-    "problem_type": "Unknown",
-    "status": "OPEN",
-    "created_at": "2025-09-24T09:22:59.615312",
-    "last_updated": "2025-09-24T09:22:59.615390",
-    "messages": [],
-    "requires_human": false,
-    "admin_user": null,
-    "is_active": true
-  },
-  {
-    "conversation_id": "conv_1758702232571_cbr22dq5p",
-    "customer_name": "John Doe",
-    "problem_type": "Unknown",
-    "status": "OPEN",
-    "created_at": "2025-09-24T09:23:55.556887",
-    "last_updated": "2025-09-24T09:23:55.556912",
-    "messages": [],
-    "requires_human": false,
-    "admin_user": null,
-    "is_active": true
-  },
-  {
-    "conversation_id": "conv_1758702290505_bv7a87qvo",
-    "customer_name": "Customer",
-    "problem_type": "wants to speak to a human",
+    "problem_type": "Roadside Assistance",
     "status": "CLOSED",
-    "created_at": "2025-09-24T09:25:24.678987",
-    "last_updated": "2025-09-24T09:30:36.976071",
+    "created_at": "2025-09-24T10:42:30.757547",
+    "last_updated": "2025-09-24T11:02:42.106801",
     "messages": [
       {
-        "timestamp": "2025-09-24T09:25:24.684285",
-        "type": "admin",
-        "content": "hi there",
-        "sender": "Admin User"
-      }
-    ],
-    "requires_human": false,
-    "admin_user": null,
-    "is_active": false
-  },
-  {
-    "conversation_id": "conv_1758702595964_z722e86t4",
-    "customer_name": "Customer",
-    "problem_type": "wants to speak to a human",
-    "status": "CLOSED",
-    "created_at": "2025-09-24T09:30:42.599199",
-    "last_updated": "2025-09-24T09:30:54.247288",
-    "messages": [
-      {
-        "timestamp": "2025-09-24T09:30:42.606888",
-        "type": "admin",
-        "content": "hi there",
-        "sender": "Admin User"
-      }
-    ],
-    "requires_human": false,
-    "admin_user": null,
-    "is_active": false
-  },
-  {
-    "conversation_id": "conv_1758702747779_uzjgkfjt3",
-    "customer_name": "John Doe",
-    "problem_type": "flat tire",
-    "status": "CLOSED",
-    "created_at": "2025-09-24T09:33:26.324641",
-    "last_updated": "2025-09-24T09:47:25.691372",
-    "messages": [
-      {
-        "timestamp": "2025-09-24T09:33:26.330257",
+        "timestamp": "2025-09-24T09:42:28.748Z",
         "type": "user",
-        "content": "hello to you too",
-        "sender": "Client"
+        "content": "Hi, I have a flat tire.",
+        "sender": "John Doe"
       },
       {
-        "timestamp": "2025-09-24T09:33:26.332111",
-        "type": "user",
-        "content": "hello to you too",
-        "sender": "Customer"
-      }
-    ],
-    "requires_human": false,
-    "admin_user": null,
-    "is_active": false
-  },
-  {
-    "conversation_id": "conv_1758703495053_2959g4spn",
-    "customer_name": "John Doe",
-    "problem_type": "Unknown",
-    "status": "OPEN",
-    "created_at": "2025-09-24T09:44:56.300326",
-    "last_updated": "2025-09-24T09:44:56.300346",
-    "messages": [],
-    "requires_human": false,
-    "admin_user": null,
-    "is_active": true
-  },
-  {
-    "conversation_id": "conv_1758703612539_cz4nty780",
-    "customer_name": "John Doe",
-    "problem_type": "flat tire",
-    "status": "CLOSED",
-    "created_at": "2025-09-24T09:47:50.246816",
-    "last_updated": "2025-09-24T09:48:00.045449",
-    "messages": [
-      {
-        "timestamp": "2025-09-24T09:47:50.250538",
-        "type": "user",
-        "content": "hi",
-        "sender": "Client"
+        "timestamp": "2025-09-24T09:42:28.748Z",
+        "type": "agent",
+        "content": "I'm sorry to hear about your flat tire. Let me help you. First, I need to confirm the issue. I'll go ahead and check if this is covered under your plan.",
+        "sender": "AI Agent"
       },
       {
-        "timestamp": "2025-09-24T09:47:50.251863",
+        "timestamp": "2025-09-24T09:42:28.748Z",
+        "type": "agent",
+        "content": "Good news, your flat tire is covered. Now I need to know your location. Could you tell me where you are right now?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T09:42:28.748Z",
         "type": "user",
-        "content": "hi",
-        "sender": "Customer"
+        "content": "Yeah, I'm near Wembley Central.",
+        "sender": "John Doe"
+      },
+      {
+        "timestamp": "2025-09-24T09:42:28.748Z",
+        "type": "agent",
+        "content": "Thanks, we've got everything we need. We'll send help your way shortly.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T10:43:00.520061",
+        "type": "user",
+        "content": "Yes, send help and request a cab",
+        "sender": "John Doe"
       }
     ],
     "requires_human": false,
@@ -124,75 +49,348 @@
     "is_active": false
   },
   {
-    "conversation_id": "conv_1758703686163_nmglhh8cu",
-    "customer_name": "Customer",
-    "problem_type": "speak to a human",
+    "conversation_id": "conv_1758710234567_abc123def",
+    "customer_name": "Sarah Mitchell",
+    "problem_type": "battery issue",
+    "status": "CLOSED",
+    "created_at": "2025-09-24T08:15:30.123456",
+    "last_updated": "2025-09-24T08:45:22.987654",
+    "messages": [
+      {
+        "timestamp": "2025-09-24T08:15:30.123Z",
+        "type": "user",
+        "content": "My car won't start, I think the battery is dead",
+        "sender": "Sarah Mitchell"
+      },
+      {
+        "timestamp": "2025-09-24T08:16:15.234Z",
+        "type": "agent",
+        "content": "I understand you're having a battery issue. To verify your coverage, can you please confirm your full name as it appears on your policy?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T08:16:45.345Z",
+        "type": "user",
+        "content": "Sarah Mitchell",
+        "sender": "Sarah Mitchell"
+      },
+      {
+        "timestamp": "2025-09-24T08:17:10.456Z",
+        "type": "agent",
+        "content": "Thank you Sarah. I've verified your policy and you're covered for battery jumpstart service! For the fastest assistance, I'll need to confirm your exact location. Can you describe where you are?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T08:17:35.567Z",
+        "type": "user",
+        "content": "I'm in the parking lot at Tesco on High Street in Camden",
+        "sender": "Sarah Mitchell"
+      },
+      {
+        "timestamp": "2025-09-24T08:18:00.678Z",
+        "type": "agent",
+        "content": "Perfect! I have all the information needed to process your roadside assistance request. Let me review your case now.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T08:18:30.789Z",
+        "type": "agent",
+        "content": "We found a repair truck from 'Quick Fix Auto' that can help you to Tesco parking lot on High Street in Camden. This will arrive in approximately 20 minutes. Would you like us to dispatch this help to you? Please confirm yes or no.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T08:18:45.890Z",
+        "type": "agent",
+        "content": "While you wait for the service vehicle, would you like us to arrange a cab for you? Please confirm yes or no.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T08:19:10.123Z",
+        "type": "user",
+        "content": "Yes, send help (no cab needed)",
+        "sender": "Sarah Mitchell"
+      },
+      {
+        "timestamp": "2025-09-24T08:19:30.234Z",
+        "type": "agent",
+        "content": "[COMMUNICATION] SMS to Sarah Mitchell: Help is on the way! A repair truck from 'Quick Fix Auto' has been dispatched to Tesco parking lot on High Street in Camden.",
+        "sender": "AI Agent"
+      }
+    ],
+    "requires_human": false,
+    "admin_user": null,
+    "is_active": false
+  },
+  {
+    "conversation_id": "conv_1758711345678_def456ghi",
+    "customer_name": "Marcus Johnson",
+    "problem_type": "lockout",
+    "status": "CLOSED",
+    "created_at": "2025-09-24T14:20:15.654321",
+    "last_updated": "2025-09-24T14:55:33.111222",
+    "messages": [
+      {
+        "timestamp": "2025-09-24T14:20:15.654Z",
+        "type": "user",
+        "content": "I locked my keys in my car, can you help?",
+        "sender": "Marcus Johnson"
+      },
+      {
+        "timestamp": "2025-09-24T14:21:00.765Z",
+        "type": "agent",
+        "content": "I understand you're having a lockout issue. To verify your coverage, can you please confirm your full name as it appears on your policy?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T14:21:20.876Z",
+        "type": "user",
+        "content": "Marcus Johnson",
+        "sender": "Marcus Johnson"
+      },
+      {
+        "timestamp": "2025-09-24T14:21:45.987Z",
+        "type": "agent",
+        "content": "Thank you Marcus. I've verified your policy and you're covered for lockout service! For the fastest assistance, I'll need to confirm your exact location. Can you describe where you are?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T14:22:10.098Z",
+        "type": "user",
+        "content": "I'm at the shopping center on Oxford Street, near John Lewis",
+        "sender": "Marcus Johnson"
+      },
+      {
+        "timestamp": "2025-09-24T14:22:35.209Z",
+        "type": "agent",
+        "content": "Perfect! I have all the information needed to process your roadside assistance request. Let me review your case now.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T14:23:00.320Z",
+        "type": "agent",
+        "content": "We found a repair truck from 'London Lock & Key Services' that can help you to Oxford Street shopping center near John Lewis. This will arrive in approximately 15 minutes. Would you like us to dispatch this help to you? Please confirm yes or no.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T14:23:15.431Z",
+        "type": "agent",
+        "content": "While you wait for the service vehicle, would you like us to arrange a cab for you? Please confirm yes or no.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T14:23:35.542Z",
+        "type": "user",
+        "content": "Yes, send help and request a cab",
+        "sender": "Marcus Johnson"
+      },
+      {
+        "timestamp": "2025-09-24T14:24:00.653Z",
+        "type": "agent",
+        "content": "[COMMUNICATION] SMS to Marcus Johnson: Help is on the way! A repair truck from 'London Lock & Key Services' has been dispatched to Oxford Street shopping center near John Lewis.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T14:24:15.764Z",
+        "type": "agent",
+        "content": "[COMMUNICATION] SMS to Marcus Johnson: A cab has been requested and will arrive in approximately 15 minutes.",
+        "sender": "AI Agent"
+      }
+    ],
+    "requires_human": false,
+    "admin_user": null,
+    "is_active": false
+  },
+  {
+    "conversation_id": "conv_1758712456789_ghi789jkl",
+    "customer_name": "Emily Chen",
+    "problem_type": "engine breakdown",
+    "status": "CLOSED",
+    "created_at": "2025-09-24T16:30:45.789123",
+    "last_updated": "2025-09-24T17:15:20.456789",
+    "messages": [
+      {
+        "timestamp": "2025-09-24T16:30:45.789Z",
+        "type": "user",
+        "content": "My engine is making weird noises and now it's smoking. I had to pull over.",
+        "sender": "Emily Chen"
+      },
+      {
+        "timestamp": "2025-09-24T16:31:30.890Z",
+        "type": "agent",
+        "content": "I understand you're having an engine breakdown issue. To verify your coverage, can you please confirm your full name as it appears on your policy?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T16:31:50.123Z",
+        "type": "user",
+        "content": "Emily Chen",
+        "sender": "Emily Chen"
+      },
+      {
+        "timestamp": "2025-09-24T16:32:15.234Z",
+        "type": "agent",
+        "content": "Thank you Emily. I've verified your policy and you're covered for towing service! For the fastest assistance, I'll need to confirm your exact location. Can you describe where you are?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T16:32:40.345Z",
+        "type": "user",
+        "content": "I'm on the A40 westbound, just past the Perivale exit. There's a lay-by here.",
+        "sender": "Emily Chen"
+      },
+      {
+        "timestamp": "2025-09-24T16:33:05.456Z",
+        "type": "agent",
+        "content": "Perfect! I have all the information needed to process your roadside assistance request. Let me review your case now.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T16:33:30.567Z",
+        "type": "agent",
+        "content": "We found a tow truck from 'Highway Heroes Towing' that can help you to A40 westbound past Perivale exit. This will arrive in approximately 30 minutes. Would you like us to dispatch this help to you? Please confirm yes or no.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T16:33:45.678Z",
+        "type": "agent",
+        "content": "While you wait for the service vehicle, would you like us to arrange a cab for you? Please confirm yes or no.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T16:34:10.789Z",
+        "type": "user",
+        "content": "No, cancel the request",
+        "sender": "Emily Chen"
+      },
+      {
+        "timestamp": "2025-09-24T16:34:30.890Z",
+        "type": "agent",
+        "content": "Service request cancelled by customer",
+        "sender": "AI Agent"
+      }
+    ],
+    "requires_human": false,
+    "admin_user": null,
+    "is_active": false
+  },
+  {
+    "conversation_id": "conv_1758713567890_jkl012mno",
+    "customer_name": "David Rodriguez",
+    "problem_type": "flat tire",
     "status": "REQUIRES_HUMAN",
-    "created_at": "2025-09-24T09:48:46.572879",
-    "last_updated": "2025-09-24T09:48:46.586522",
+    "created_at": "2025-09-24T12:45:20.345678",
+    "last_updated": "2025-09-24T13:10:15.678901",
     "messages": [
       {
-        "timestamp": "2025-09-24T09:48:46.581348",
+        "timestamp": "2025-09-24T12:45:20.345Z",
         "type": "user",
-        "content": "speak to a human",
-        "sender": "Customer"
+        "content": "I have a flat tire and I'm stranded",
+        "sender": "David Rodriguez"
+      },
+      {
+        "timestamp": "2025-09-24T12:46:05.456Z",
+        "type": "agent",
+        "content": "I understand you're having a flat tire issue. To verify your coverage, can you please confirm your full name as it appears on your policy?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T12:46:25.567Z",
+        "type": "user",
+        "content": "David Rodriguez",
+        "sender": "David Rodriguez"
+      },
+      {
+        "timestamp": "2025-09-24T12:46:50.678Z",
+        "type": "agent",
+        "content": "Thank you David. I've verified your policy and you're covered for flat tire service! For the fastest assistance, I'll need to confirm your exact location. Can you describe where you are?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T12:47:15.789Z",
+        "type": "user",
+        "content": "I'm on some country road, I think it's the B4009 but I'm not sure. There are no street signs and it's getting dark. I'm really worried and need to speak to a human please.",
+        "sender": "David Rodriguez"
+      },
+      {
+        "timestamp": "2025-09-24T12:47:45.890Z",
+        "type": "agent",
+        "content": "I understand you'd like to speak with a human representative. Let me connect you with one of our customer service agents who can assist you personally. Please hold on while I transfer your conversation.",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T12:48:00.123Z",
+        "type": "system",
+        "content": "🔄 You are now connected to a human agent. They will assist you shortly.",
+        "sender": "System"
+      },
+      {
+        "timestamp": "2025-09-24T12:50:30.234Z",
+        "type": "admin",
+        "content": "Hi David, this is Tom from customer service. I can see you're on a country road with a flat tire and you're not sure of your exact location. Let me help you figure out where you are first.",
+        "sender": "Tom (Admin)"
+      },
+      {
+        "timestamp": "2025-09-24T12:51:00.345Z",
+        "type": "user",
+        "content": "Thank you so much! I can see a pub called The Red Lion in the distance, does that help?",
+        "sender": "David Rodriguez"
+      },
+      {
+        "timestamp": "2025-09-24T12:52:15.456Z",
+        "type": "admin",
+        "content": "Perfect! I found The Red Lion pub - you're on the B4009 near Thame. I'm dispatching our nearest service truck now. They should be with you in about 25 minutes. Are you in a safe location?",
+        "sender": "Tom (Admin)"
       }
     ],
     "requires_human": true,
-    "admin_user": "System",
+    "admin_user": "Tom",
     "is_active": true
   },
   {
-    "conversation_id": "conv_1758703937173_ztfs2kirg",
-    "customer_name": "John Doe",
-    "problem_type": "Unknown",
+    "conversation_id": "conv_1758714678901_mno345pqr",
+    "customer_name": "Lisa Thompson",
+    "problem_type": "battery issue",
     "status": "OPEN",
-    "created_at": "2025-09-24T09:52:18.409002",
-    "last_updated": "2025-09-24T09:52:18.409014",
-    "messages": [],
-    "requires_human": false,
-    "admin_user": null,
-    "is_active": true
-  },
-  {
-    "conversation_id": "conv_1758703962250_dn6k1nits",
-    "customer_name": "John Doe",
-    "problem_type": "Unknown",
-    "status": "OPEN",
-    "created_at": "2025-09-24T09:52:43.339963",
-    "last_updated": "2025-09-24T09:52:43.339986",
-    "messages": [],
-    "requires_human": false,
-    "admin_user": null,
-    "is_active": true
-  },
-  {
-    "conversation_id": "conv_1758704144581_kemd8evjh",
-    "customer_name": "Customer",
-    "problem_type": "Customer requested to speak to a human.",
-    "status": "CLOSED",
-    "created_at": "2025-09-24T09:56:30.191705",
-    "last_updated": "2025-09-24T10:04:06.375390",
+    "created_at": "2025-09-24T18:20:10.123456",
+    "last_updated": "2025-09-24T18:25:35.789012",
     "messages": [
       {
-        "timestamp": "2025-09-24T09:56:30.202813",
+        "timestamp": "2025-09-24T18:20:10.123Z",
         "type": "user",
-        "content": "Customer requested to speak to a human.",
-        "sender": "Customer"
+        "content": "Hi, my car battery seems to be completely dead. The lights won't even come on.",
+        "sender": "Lisa Thompson"
+      },
+      {
+        "timestamp": "2025-09-24T18:21:00.234Z",
+        "type": "agent",
+        "content": "I understand you're having a battery issue. To verify your coverage, can you please confirm your full name as it appears on your policy?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T18:21:20.345Z",
+        "type": "user",
+        "content": "Lisa Thompson",
+        "sender": "Lisa Thompson"
+      },
+      {
+        "timestamp": "2025-09-24T18:21:45.456Z",
+        "type": "agent",
+        "content": "Thank you Lisa. I've verified your policy and you're covered for battery jumpstart service! For the fastest assistance, I'll need to confirm your exact location. Can you describe where you are?",
+        "sender": "AI Agent"
+      },
+      {
+        "timestamp": "2025-09-24T18:22:10.567Z",
+        "type": "user",
+        "content": "I'm at my office building on Canary Wharf, the underground parking garage level -2",
+        "sender": "Lisa Thompson"
+      },
+      {
+        "timestamp": "2025-09-24T18:22:35.678Z",
+        "type": "agent",
+        "content": "Perfect! I have all the information needed to process your roadside assistance request. Let me review your case now.",
+        "sender": "AI Agent"
       }
     ],
-    "requires_human": true,
-    "admin_user": "System",
-    "is_active": false
-  },
-  {
-    "conversation_id": "conv_1758704567138_lsalj988u",
-    "customer_name": "John Doe",
-    "problem_type": "Unknown",
-    "status": "OPEN",
-    "created_at": "2025-09-24T10:02:48.431311",
-    "last_updated": "2025-09-24T10:02:48.431326",
-    "messages": [],
     "requires_human": false,
     "admin_user": null,
     "is_active": true

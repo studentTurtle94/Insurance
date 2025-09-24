@@ -235,6 +235,34 @@ async def process_claim(payload: Dict[str, Any] = Body(...)):
 async def get_status():
     return {"message": _fake_status_message}
 
+@app.options("/api/confirm_dispatch")
+async def confirm_dispatch_options():
+    return {"status": "ok"}
+
+@app.post("/api/confirm_dispatch")
+async def confirm_dispatch(payload: Dict[str, Any] = Body(...)):
+    """Handle user confirmations for dispatch and cab request"""
+    global _fake_status_message
+    
+    conversation_state = payload.get("conversation_state", {})
+    help_confirmed = payload.get("help_confirmed", False)
+    cab_requested = payload.get("cab_requested", False)
+    
+    # Use the confirmation handler
+    result = tools.confirm_dispatch_and_cab(conversation_state, help_confirmed, cab_requested)
+    
+    # Generate status message from communications
+    if result.get("status") == "success":
+        communications = result.get("communications", [])
+        if communications:
+            _fake_status_message = communications[0]  # First communication message
+    elif result.get("status") == "cancelled":
+        _fake_status_message = result.get("message", "Service request cancelled")
+    else:
+        _fake_status_message = f"Service request failed: {result.get('reason', 'Unknown error')}"
+    
+    return result
+
 @app.post("/api/check_coverage")
 async def check_coverage(payload: Dict[str, Any] = Body(...)):
     """Check if a problem description is covered by policy"""
