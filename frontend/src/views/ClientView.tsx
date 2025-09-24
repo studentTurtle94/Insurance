@@ -104,16 +104,6 @@ export default function ClientView() {
             if (checkForHumanRequest(issue || '') || 
                 checkForHumanRequest(location || '')) {
               
-              // Interrupt and disconnect the LLM session
-              if (sessionRef.current) {
-                try {
-                  await sessionRef.current.close();
-                  console.log('LLM session interrupted for human handoff');
-                } catch (error) {
-                  console.error('Error interrupting LLM session:', error);
-                }
-              }
-              
               // First, let the LLM respond with a handoff message before interrupting
               const handoffMessage = "I understand you'd like to speak with a human representative. Let me connect you with one of our customer service agents who can assist you personally. Please hold on while I transfer your conversation.";
               
@@ -195,7 +185,7 @@ export default function ClientView() {
                 } catch (error) {
                   console.error('Error during handoff process:', error);
                 }
-              }, 2000); // 2 second delay to let the LLM message be displayed
+              }, 5000); // 2 second delay to let the LLM message be displayed
               
               return handoffMessage;
             }
@@ -339,10 +329,22 @@ Keep your responses concise and focused on gathering the required information fo
                     .join(' ');
                   
                   // Check for audio content
-                  const audioContent = item.content.find((c: any) => c.type === 'input_audio');
-                  if (audioContent && !textContent) {
-                    content = '[Audio message]';
+                  const inputAudioContent = item.content.find((c: any) => c.type === 'input_audio');
+                  const outputAudioContent = item.content.find((c: any) => c.type === 'output_audio');
+                  
+                  if (outputAudioContent && outputAudioContent.transcript) {
+                    content = outputAudioContent.transcript;
                     metadata.hasAudio = true;
+                    metadata.isTranscript = true;
+                  } else if (inputAudioContent) {
+                    if (inputAudioContent.transcript) {
+                      content = inputAudioContent.transcript;
+                      metadata.hasAudio = true;
+                      metadata.isTranscript = true;
+                    } else if (!textContent) {
+                      content = '[Audio message]';
+                      metadata.hasAudio = true;
+                    }
                   } else {
                     content = textContent;
                   }

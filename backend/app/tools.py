@@ -89,6 +89,7 @@ CURRENT SITUATION:
 
 YOUR ROLE BY STEP:
 - Step 1: Customer described their problem. Ask for their full name for policy verification.
+- Step 1.5: If clarification needed about potential exclusions, ask tactful questions about circumstances.
 - Step 2: Customer provided name. Thank them, verify their policy coverage, and ask for their exact location (street name, landmarks, etc.) all in one response.
 - Step 3: (Deprecated - skip to step 4)
 - Step 4: Location received. Confirm you have everything needed to dispatch help.
@@ -97,6 +98,8 @@ YOUR ROLE BY STEP:
 GUIDELINES:
 - Be empathetic and professional
 - Keep responses concise (2-3 sentences max)
+- When asking clarification questions, be tactful and natural
+- Never directly ask about exclusions - gather context naturally
 - In step 2, combine policy verification with location request
 - Sound natural and human-like
 - Show understanding of their situation"""
@@ -172,10 +175,25 @@ GUIDELINES:
             problem_analysis = analyze_problem_description(message)
             collected["problem_description"] = message
             collected["problem_type"] = problem_analysis["problem_type"]
+            
+            print(f"[DEBUG] Step 1: analyzed problem '{problem_analysis['problem_type']}', needs_clarification: {problem_analysis.get('needs_clarification', False)}")
+            
+            # Check if clarification is needed
+            if problem_analysis.get("needs_clarification"):
+                collected["potential_exclusions"] = problem_analysis["potential_exclusions"]
+                collected["clarification_questions"] = problem_analysis["clarification_questions"]
+                
+                # Use the first clarification question from the analysis
+                clarification_question = problem_analysis["clarification_questions"][0] if problem_analysis["clarification_questions"] else "Could you tell me a bit more about the circumstances of your situation?"
+                
+                return {
+                    "reply": f"I understand you're having a {problem_analysis['problem_type']} issue. {clarification_question}",
+                    "state": {"step": 1.5, "collected": collected}
+                }
+            
+            # No clarification needed, proceed with coverage decision
             collected["is_covered"] = problem_analysis["is_covered"]
             collected["coverage_reason"] = problem_analysis["coverage_reason"]
-            
-            print(f"[DEBUG] Step 1 -> 2: analyzed problem '{problem_analysis['problem_type']}', covered: {problem_analysis['is_covered']}")
             
             # If not covered, end the conversation here
             if not problem_analysis["is_covered"]:
@@ -186,6 +204,31 @@ GUIDELINES:
             
             return {
                 "reply": reply,
+                "state": {"step": 2, "collected": collected}
+            }
+        elif step == 1.5:
+            # Handle clarification response
+            potential_exclusions = collected.get("potential_exclusions", [])
+            problem_type = collected.get("problem_type", "general issue")
+            
+            clarification_analysis = analyze_clarification_response(message, potential_exclusions, problem_type)
+            collected["clarification_response"] = message
+            collected["is_covered"] = clarification_analysis["is_covered"]
+            collected["coverage_reason"] = clarification_analysis["coverage_reason"]
+            collected["exclusions_apply"] = clarification_analysis.get("exclusions_apply", False)
+            
+            print(f"[DEBUG] Step 1.5 -> next: clarification analysis complete, covered: {clarification_analysis['is_covered']}")
+            
+            # If not covered due to exclusions, end the conversation
+            if not clarification_analysis["is_covered"]:
+                return {
+                    "reply": f"Thank you for the additional information. {clarification_analysis['coverage_reason']}. You may want to contact a service provider directly.",
+                    "state": {"step": 5, "collected": collected, "coverage_denied": True}
+                }
+            
+            # Coverage approved, ask for name
+            return {
+                "reply": f"Thank you for clarifying. To verify your coverage, can you please confirm your full name as it appears on your policy?",
                 "state": {"step": 2, "collected": collected}
             }
         elif step == 2:
@@ -243,6 +286,20 @@ def fallback_conversational_agent(message: str, conversation_state: Dict[str, An
         problem_analysis = analyze_problem_description(message)
         collected["problem_description"] = message
         collected["problem_type"] = problem_analysis["problem_type"]
+        
+        # Check if clarification is needed
+        if problem_analysis.get("needs_clarification"):
+            collected["potential_exclusions"] = problem_analysis["potential_exclusions"]
+            collected["clarification_questions"] = problem_analysis["clarification_questions"]
+            
+            clarification_question = problem_analysis["clarification_questions"][0] if problem_analysis["clarification_questions"] else "Could you tell me a bit more about the circumstances of your situation?"
+            
+            return {
+                "reply": f"I understand you're having a {problem_analysis['problem_type']} issue. {clarification_question}",
+                "state": {"step": 1.5, "collected": collected}
+            }
+        
+        # No clarification needed
         collected["is_covered"] = problem_analysis["is_covered"]
         collected["coverage_reason"] = problem_analysis["coverage_reason"]
         
@@ -255,6 +312,29 @@ def fallback_conversational_agent(message: str, conversation_state: Dict[str, An
             
         return {
             "reply": f"I understand you're having a {problem_analysis['problem_type']} issue. To verify your coverage, can you please confirm your full name as it appears on your policy?",
+            "state": {"step": 2, "collected": collected}
+        }
+    elif step == 1.5:
+        # Handle clarification response in fallback
+        potential_exclusions = collected.get("potential_exclusions", [])
+        problem_type = collected.get("problem_type", "general issue")
+        
+        clarification_analysis = analyze_clarification_response(message, potential_exclusions, problem_type)
+        collected["clarification_response"] = message
+        collected["is_covered"] = clarification_analysis["is_covered"]
+        collected["coverage_reason"] = clarification_analysis["coverage_reason"]
+        collected["exclusions_apply"] = clarification_analysis.get("exclusions_apply", False)
+        
+        # If not covered due to exclusions, end the conversation
+        if not clarification_analysis["is_covered"]:
+            return {
+                "reply": f"Thank you for the additional information. {clarification_analysis['coverage_reason']}. You may want to contact a service provider directly.",
+                "state": {"step": 5, "collected": collected, "coverage_denied": True}
+            }
+        
+        # Coverage approved, ask for name
+        return {
+            "reply": "Thank you for clarifying. To verify your coverage, can you please confirm your full name as it appears on your policy?",
             "state": {"step": 2, "collected": collected}
         }
     elif step == 2:
@@ -281,13 +361,13 @@ def fallback_conversational_agent(message: str, conversation_state: Dict[str, An
             "state": {"step": 5, "collected": collected, "complete": True}
         }
 
-def analyze_problem_description(description: str) -> Dict[str, Any]:
-    """LLM-based analysis to categorize problem type and check policy coverage"""
+def analyze_problem_description(description: str, location_context: str = None) -> Dict[str, Any]:
+    """LLM-based analysis to categorize problem type and check policy coverage with exclusion detection"""
     client = get_openai_client()
     
     if not client:
         # Fallback to simple keyword matching if no OpenAI client
-        return fallback_problem_analysis(description)
+        return fallback_problem_analysis(description, location_context)
     
     try:
         # Get the policy coverage details for analysis
@@ -296,8 +376,9 @@ def analyze_problem_description(description: str) -> Dict[str, Any]:
         
         system_prompt = f"""You are an insurance policy analyzer. Analyze the customer's problem description and determine:
 1. The specific problem type
-2. Whether it's covered under the policy
-3. If not covered, the reason why
+2. Whether there are potential exclusions that need clarification
+3. Whether it's covered under the policy (only if no clarification needed)
+4. If clarification is needed, what tactful questions to ask
 
 POLICY COVERAGE:
 {json.dumps(policy_coverage, indent=2)}
@@ -305,23 +386,35 @@ POLICY COVERAGE:
 POLICY EXCLUSIONS:
 {exclusions}
 
+IMPORTANT: If the description might involve exclusions (commercial use, racing events, off-road use), set "needs_clarification": true and provide tactful questions instead of immediately denying coverage.
+
 Return your analysis in this exact JSON format:
 {{
     "problem_type": "specific problem category",
-    "is_covered": true/false,
-    "coverage_reason": "explanation of coverage decision",
+    "needs_clarification": true/false,
+    "clarification_questions": ["tactful question 1", "tactful question 2"] or null,
+    "potential_exclusions": ["exclusion1", "exclusion2"] or null,
+    "is_covered": true/false/null,
+    "coverage_reason": "explanation of coverage decision or why clarification needed",
     "suggested_service": "recommended service type if covered"
 }}
 
-Be strict about coverage - if fuel delivery is not covered, return is_covered: false."""
+Examples of tactful questions:
+- "To help me find the best assistance for you, could you tell me a bit more about where this happened? Were you on a main road or perhaps somewhere more remote?"
+- "I'd like to make sure I get you the right help - were you driving for personal use when this occurred?"
+- "To ensure I dispatch the most appropriate service, could you describe the area where you're located? Is it easily accessible by our service vehicles?"
 
+Be tactful and professional - never directly ask "were you off-roading?" but gather context naturally."""
+
+        location_info = f"\nLocation context: {location_context}" if location_context else ""
+        
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Customer problem: {description}"}
+                {"role": "user", "content": f"Customer problem: {description}{location_info}"}
             ],
-            max_tokens=300,
+            max_tokens=500,
             temperature=0.1  # Low temperature for consistent analysis
         )
         
@@ -332,32 +425,86 @@ Be strict about coverage - if fuel delivery is not covered, return is_covered: f
             result = json.loads(result_text)
             return {
                 "problem_type": result.get("problem_type", "general roadside assistance"),
-                "is_covered": result.get("is_covered", True),
+                "needs_clarification": result.get("needs_clarification", False),
+                "clarification_questions": result.get("clarification_questions"),
+                "potential_exclusions": result.get("potential_exclusions"),
+                "is_covered": result.get("is_covered"),
                 "coverage_reason": result.get("coverage_reason", "Standard coverage applies"),
                 "suggested_service": result.get("suggested_service", "repair_truck")
             }
         except json.JSONDecodeError:
             print(f"[DEBUG] Failed to parse LLM response as JSON: {result_text}")
-            return fallback_problem_analysis(description)
+            return fallback_problem_analysis(description, location_context)
             
     except Exception as e:
         print(f"[DEBUG] LLM problem analysis failed: {e}")
-        return fallback_problem_analysis(description)
+        return fallback_problem_analysis(description, location_context)
 
-def fallback_problem_analysis(description: str) -> Dict[str, Any]:
-    """Fallback keyword-based analysis with policy checking"""
+def fallback_problem_analysis(description: str, location_context: str = None) -> Dict[str, Any]:
+    """Fallback keyword-based analysis with policy checking and exclusion detection"""
     desc_lower = description.lower()
+    location_lower = location_context.lower() if location_context else ""
     
+    # Check for potential exclusions that need clarification
+    potential_exclusions = []
+    clarification_questions = []
+    
+    # Check for off-road indicators
+    if any(word in desc_lower or word in location_lower for word in ["trail", "dirt", "mud", "forest", "mountain", "desert", "beach", "sand", "creek", "river"]):
+        potential_exclusions.append("off_road_use")
+        clarification_questions.append("To help me find the best assistance for you, could you tell me a bit more about where this happened? Were you on a main road or perhaps somewhere more remote?")
+    
+    # Check for commercial use indicators
+    if any(word in desc_lower for word in ["delivery", "work", "business", "commercial", "company", "job"]):
+        potential_exclusions.append("commercial_use")
+        clarification_questions.append("I'd like to make sure I get you the right help - were you driving for personal use when this occurred?")
+    
+    # Check for racing/event indicators
+    if any(word in desc_lower for word in ["race", "track", "event", "competition", "racing", "speed"]):
+        potential_exclusions.append("racing_events")
+        clarification_questions.append("Could you tell me a bit more about what you were doing when this issue occurred?")
+    
+    # If potential exclusions found, ask for clarification
+    if potential_exclusions:
+        problem_type = "general roadside assistance"
+        if any(word in desc_lower for word in ["flat", "tire", "puncture", "wheel"]):
+            problem_type = "flat tire"
+        elif any(word in desc_lower for word in ["battery", "dead", "won't start", "wont start", "no start"]):
+            problem_type = "battery issue"
+        elif any(word in desc_lower for word in ["locked", "keys", "lock"]):
+            problem_type = "lockout"
+        elif any(word in desc_lower for word in ["fuel", "gas", "petrol", "empty"]):
+            problem_type = "fuel delivery"
+        elif any(word in desc_lower for word in ["engine", "breakdown", "broken", "tow"]):
+            problem_type = "breakdown requiring tow"
+            
+        return {
+            "problem_type": problem_type,
+            "needs_clarification": True,
+            "clarification_questions": clarification_questions,
+            "potential_exclusions": potential_exclusions,
+            "is_covered": None,
+            "coverage_reason": "Need to verify circumstances to ensure coverage applies",
+            "suggested_service": "repair_truck"
+        }
+    
+    # No potential exclusions, proceed with normal analysis
     if any(word in desc_lower for word in ["flat", "tire", "puncture", "wheel"]):
         return {
             "problem_type": "flat tire",
+            "needs_clarification": False,
+            "clarification_questions": None,
+            "potential_exclusions": None,
             "is_covered": True,
             "coverage_reason": "Flat tire service is covered under policy",
             "suggested_service": "repair_truck"
         }
     elif any(word in desc_lower for word in ["battery", "dead", "won't start", "wont start", "no start"]):
         return {
-            "problem_type": "battery issue", 
+            "problem_type": "battery issue",
+            "needs_clarification": False,
+            "clarification_questions": None,
+            "potential_exclusions": None,
             "is_covered": True,
             "coverage_reason": "Battery jumpstart is covered under policy",
             "suggested_service": "repair_truck"
@@ -365,6 +512,9 @@ def fallback_problem_analysis(description: str) -> Dict[str, Any]:
     elif any(word in desc_lower for word in ["locked", "keys", "lock"]):
         return {
             "problem_type": "lockout",
+            "needs_clarification": False,
+            "clarification_questions": None,
+            "potential_exclusions": None,
             "is_covered": True, 
             "coverage_reason": "Lockout service is covered under policy",
             "suggested_service": "repair_truck"
@@ -372,6 +522,9 @@ def fallback_problem_analysis(description: str) -> Dict[str, Any]:
     elif any(word in desc_lower for word in ["fuel", "gas", "petrol", "empty"]):
         return {
             "problem_type": "fuel delivery",
+            "needs_clarification": False,
+            "clarification_questions": None,
+            "potential_exclusions": None,
             "is_covered": False,
             "coverage_reason": "Fuel delivery is not covered under your policy",
             "suggested_service": None
@@ -379,6 +532,9 @@ def fallback_problem_analysis(description: str) -> Dict[str, Any]:
     elif any(word in desc_lower for word in ["engine", "breakdown", "broken", "tow"]):
         return {
             "problem_type": "breakdown requiring tow",
+            "needs_clarification": False,
+            "clarification_questions": None,
+            "potential_exclusions": None,
             "is_covered": True,
             "coverage_reason": "Towing service is covered under policy", 
             "suggested_service": "tow_truck"
@@ -386,9 +542,112 @@ def fallback_problem_analysis(description: str) -> Dict[str, Any]:
     else:
         return {
             "problem_type": "general roadside assistance",
+            "needs_clarification": False,
+            "clarification_questions": None,
+            "potential_exclusions": None,
             "is_covered": True,
             "coverage_reason": "General roadside assistance is covered",
             "suggested_service": "repair_truck"
+        }
+
+def analyze_clarification_response(clarification_response: str, potential_exclusions: List[str], problem_type: str) -> Dict[str, Any]:
+    """Analyze customer's response to clarification questions to determine final coverage"""
+    client = get_openai_client()
+    
+    if not client:
+        return fallback_clarification_analysis(clarification_response, potential_exclusions, problem_type)
+    
+    try:
+        system_prompt = f"""You are an insurance policy analyzer. Based on the customer's clarification response, determine if their situation falls under policy exclusions.
+
+POLICY EXCLUSIONS TO CHECK:
+{potential_exclusions}
+
+EXCLUSION DEFINITIONS:
+- off_road_use: Driving on unpaved roads, trails, beaches, or any non-public roadways
+- commercial_use: Using vehicle for business purposes, deliveries, or work-related activities  
+- racing_events: Participating in races, competitions, or high-speed events
+
+Analyze the customer's response and determine if any exclusions apply.
+
+Return your analysis in this exact JSON format:
+{{
+    "exclusions_apply": true/false,
+    "applicable_exclusions": ["exclusion1", "exclusion2"] or [],
+    "is_covered": true/false,
+    "coverage_reason": "explanation of coverage decision",
+    "confidence": 0.0-1.0
+}}
+
+Be conservative - if there's clear evidence of exclusion activity, deny coverage. If unclear or likely covered, approve."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Problem type: {problem_type}\nPotential exclusions: {potential_exclusions}\nCustomer response: {clarification_response}"}
+            ],
+            max_tokens=300,
+            temperature=0.1
+        )
+        
+        result_text = response.choices[0].message.content.strip()
+        
+        try:
+            result = json.loads(result_text)
+            return {
+                "exclusions_apply": result.get("exclusions_apply", False),
+                "applicable_exclusions": result.get("applicable_exclusions", []),
+                "is_covered": result.get("is_covered", True),
+                "coverage_reason": result.get("coverage_reason", "Coverage applies based on clarification"),
+                "confidence": result.get("confidence", 0.8)
+            }
+        except json.JSONDecodeError:
+            print(f"[DEBUG] Failed to parse clarification analysis JSON: {result_text}")
+            return fallback_clarification_analysis(clarification_response, potential_exclusions, problem_type)
+            
+    except Exception as e:
+        print(f"[DEBUG] LLM clarification analysis failed: {e}")
+        return fallback_clarification_analysis(clarification_response, potential_exclusions, problem_type)
+
+def fallback_clarification_analysis(clarification_response: str, potential_exclusions: List[str], problem_type: str) -> Dict[str, Any]:
+    """Fallback keyword-based analysis of clarification response"""
+    response_lower = clarification_response.lower()
+    applicable_exclusions = []
+    
+    # Check for off-road exclusion
+    if "off_road_use" in potential_exclusions:
+        if any(word in response_lower for word in ["trail", "dirt", "mud", "off-road", "offroad", "forest", "mountain", "beach", "sand", "creek", "river", "remote", "unpaved"]):
+            applicable_exclusions.append("off_road_use")
+    
+    # Check for commercial use exclusion  
+    if "commercial_use" in potential_exclusions:
+        if any(word in response_lower for word in ["work", "business", "delivery", "commercial", "company", "job", "employer"]):
+            applicable_exclusions.append("commercial_use")
+    
+    # Check for racing events exclusion
+    if "racing_events" in potential_exclusions:
+        if any(word in response_lower for word in ["race", "racing", "track", "competition", "event", "speed"]):
+            applicable_exclusions.append("racing_events")
+    
+    exclusions_apply = len(applicable_exclusions) > 0
+    
+    if exclusions_apply:
+        exclusion_text = ", ".join(applicable_exclusions).replace("_", " ")
+        return {
+            "exclusions_apply": True,
+            "applicable_exclusions": applicable_exclusions,
+            "is_covered": False,
+            "coverage_reason": f"This incident falls under policy exclusions: {exclusion_text}",
+            "confidence": 0.9
+        }
+    else:
+        return {
+            "exclusions_apply": False,
+            "applicable_exclusions": [],
+            "is_covered": True,
+            "coverage_reason": "Based on the circumstances you've described, your situation is covered under the policy",
+            "confidence": 0.8
         }
 
 # ==================== AGENT 2: Verification & Policy Agent ====================
