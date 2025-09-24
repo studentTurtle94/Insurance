@@ -1,9 +1,12 @@
 import os
 from typing import Optional, Dict, Any
-from fastapi import FastAPI, Body, HTTPException
+from datetime import datetime
+from fastapi import FastAPI, Body, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-import tools
+from app import tools
 import httpx
+import json
+import asyncio
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -29,9 +32,111 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# WebSocket connection manager for real-time chat
+class ConnectionManager:
+    def __init__(self):
+        # Store connections by conversation_id
+        self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
+    
+    async def connect(self, websocket: WebSocket, conversation_id: str, connection_type: str):
+        await websocket.accept()
+        if conversation_id not in self.active_connections:
+            self.active_connections[conversation_id] = {}
+        self.active_connections[conversation_id][connection_type] = websocket
+        print(f"Connected {connection_type} to conversation {conversation_id}")
+    
+    def disconnect(self, conversation_id: str, connection_type: str):
+        if conversation_id in self.active_connections:
+            self.active_connections[conversation_id].pop(connection_type, None)
+            if not self.active_connections[conversation_id]:
+                del self.active_connections[conversation_id]
+        print(f"Disconnected {connection_type} from conversation {conversation_id}")
+    
+    async def send_to_conversation(self, conversation_id: str, message: dict, exclude_type: str = None):
+        """Send message to all connections in a conversation except the sender"""
+        if conversation_id in self.active_connections:
+            for conn_type, websocket in self.active_connections[conversation_id].items():
+                if conn_type != exclude_type:
+                    try:
+                        await websocket.send_text(json.dumps(message))
+                    except Exception as e:
+                        print(f"Error sending message to {conn_type}: {e}")
+                        # Remove broken connection
+                        self.disconnect(conversation_id, conn_type)
+
+manager = ConnectionManager()
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+# WebSocket endpoints
+@app.websocket("/ws/client/{conversation_id}")
+async def websocket_client_endpoint(websocket: WebSocket, conversation_id: str):
+    await manager.connect(websocket, conversation_id, "client")
+    try:
+        while True:
+            # Keep connection alive and handle any client messages
+            data = await websocket.receive_text()
+            message_data = json.loads(data)
+            
+            # If client sends a message, broadcast to admin
+            if message_data.get("type") == "message":
+                await manager.send_to_conversation(
+                    conversation_id,
+                    {
+                        "type": "client_message",
+                        "content": message_data.get("content", ""),
+                        "timestamp": datetime.now().isoformat(),
+                        "sender": "Client"
+                    },
+                    exclude_type="client"
+                )
+                
+                # Also save to conversation history
+                tools.add_message_to_conversation(
+                    conversation_id,
+                    "user",
+                    message_data.get("content", ""),
+                    "Client"
+                )
+            
+    except WebSocketDisconnect:
+        manager.disconnect(conversation_id, "client")
+
+@app.websocket("/ws/admin/{conversation_id}")
+async def websocket_admin_endpoint(websocket: WebSocket, conversation_id: str):
+    await manager.connect(websocket, conversation_id, "admin")
+    try:
+        while True:
+            # Handle admin messages
+            data = await websocket.receive_text()
+            message_data = json.loads(data)
+            
+            if message_data.get("type") == "admin_message":
+                # Send to client
+                await manager.send_to_conversation(
+                    conversation_id,
+                    {
+                        "type": "admin_message",
+                        "content": message_data.get("content", ""),
+                        "timestamp": datetime.now().isoformat(),
+                        "sender": message_data.get("sender", "Admin"),
+                        "admin_user": message_data.get("admin_user", "Admin")
+                    },
+                    exclude_type="admin"
+                )
+                
+                # Save to conversation history
+                tools.add_message_to_conversation(
+                    conversation_id,
+                    "admin",
+                    message_data.get("content", ""),
+                    message_data.get("admin_user", "Admin")
+                )
+            
+    except WebSocketDisconnect:
+        manager.disconnect(conversation_id, "admin")
 
 # Phase 2/4 placeholders to unblock frontend wiring
 @app.options("/api/conversation")
@@ -163,6 +268,151 @@ async def get_admin_cases():
         return {"cases": cases_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch cases: {str(e)}")
+
+# Conversation endpoints
+@app.get("/api/admin/conversations")
+async def get_conversations():
+    """Get all active conversations for Kanban board"""
+    try:
+        conversations = tools.get_all_conversations()
+        
+        # Organize conversations by status
+        organized = {
+            "open": [c for c in conversations if c["status"] == "OPEN"],
+            "requires_human": [c for c in conversations if c["status"] == "REQUIRES_HUMAN"],
+            "closed": [c for c in conversations if c["status"] == "CLOSED"]
+        }
+        
+        return {"conversations": organized}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch conversations: {str(e)}")
+
+@app.post("/api/admin/conversations")
+async def create_conversation(payload: Dict[str, Any] = Body(...)):
+    """Create a new conversation"""
+    try:
+        conversation_id = payload.get("conversation_id")
+        customer_name = payload.get("customer_name", "Unknown")
+        problem_type = payload.get("problem_type", "Unknown")
+        
+        if not conversation_id:
+            raise HTTPException(status_code=400, detail="conversation_id is required")
+        
+        conversation_data = tools.create_conversation_entry(
+            conversation_id, customer_name, problem_type
+        )
+        
+        success = tools.save_conversation(conversation_id, conversation_data)
+        
+        if success:
+            return {"message": "Conversation created successfully", "conversation_id": conversation_id}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save conversation")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create conversation: {str(e)}")
+
+@app.post("/api/admin/conversations/{conversation_id}/message")
+async def add_conversation_message(conversation_id: str, payload: Dict[str, Any] = Body(...)):
+    """Add a message to a conversation (from client or admin)"""
+    try:
+        message_type = payload.get("message_type", "user")  # 'user', 'agent', 'admin'
+        content = payload.get("content", "")
+        sender = payload.get("sender", message_type)
+        
+        if not content:
+            raise HTTPException(status_code=400, detail="Message content is required")
+        
+        success = tools.add_message_to_conversation(
+            conversation_id, 
+            message_type, 
+            content, 
+            sender
+        )
+        
+        if success:
+            return {"message": "Message added successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add message: {str(e)}")
+
+@app.post("/api/admin/conversations/{conversation_id}/admin_message")
+async def send_admin_message(conversation_id: str, payload: Dict[str, Any] = Body(...)):
+    """Send a message as admin to a conversation"""
+    try:
+        admin_user = payload.get("admin_user", "Admin")
+        message = payload.get("message", "")
+        
+        if not message:
+            raise HTTPException(status_code=400, detail="Message content is required")
+        
+        success = tools.add_message_to_conversation(
+            conversation_id, 
+            "admin", 
+            message, 
+            admin_user
+        )
+        
+        if success:
+            # Also broadcast via WebSocket to connected clients
+            await manager.send_to_conversation(
+                conversation_id,
+                {
+                    "type": "admin_message",
+                    "content": message,
+                    "timestamp": datetime.now().isoformat(),
+                    "sender": admin_user,
+                    "admin_user": admin_user
+                },
+                exclude_type="admin"
+            )
+            
+            return {"message": "Message sent successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
+
+@app.post("/api/admin/conversations/{conversation_id}/takeover")
+async def takeover_conversation(conversation_id: str, payload: Dict[str, Any] = Body(...)):
+    """Take over a conversation"""
+    try:
+        admin_user = payload.get("admin_user", "Admin")
+        
+        conversations = tools.get_all_conversations()
+        for conv in conversations:
+            if conv["conversation_id"] == conversation_id:
+                conv["admin_user"] = admin_user
+                conv["status"] = "REQUIRES_HUMAN"
+                conv["last_updated"] = datetime.now().isoformat()
+                tools.save_conversation(conversation_id, conv)
+                return {"message": "Conversation taken over successfully"}
+        
+        raise HTTPException(status_code=404, detail="Conversation not found")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to take over conversation: {str(e)}")
+
+@app.post("/api/admin/conversations/{conversation_id}/close")
+async def close_conversation(conversation_id: str, payload: Dict[str, Any] = Body(...)):
+    """Close a conversation"""
+    try:
+        conversations = tools.get_all_conversations()
+        for conv in conversations:
+            if conv["conversation_id"] == conversation_id:
+                conv["status"] = "CLOSED"
+                conv["is_active"] = False
+                conv["last_updated"] = datetime.now().isoformat()
+                tools.save_conversation(conversation_id, conv)
+                return {"message": "Conversation closed successfully"}
+        
+        raise HTTPException(status_code=404, detail="Conversation not found")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to close conversation: {str(e)}")
 
 @app.post("/api/admin/cases/{case_id}/takeover")
 async def takeover_case(case_id: str, payload: Dict[str, Any] = Body(...)):

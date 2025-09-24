@@ -30,5 +30,293 @@
         }
       }
     ]
+  },
+  {
+    "claim_id": "3079b45d-88a1-4c48-8ffa-0bc3e16f2f57",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-23T22:29:03.041129",
+    "history": [
+      {
+        "timestamp": "2025-09-23T22:29:03.041138",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-23T22:29:03.044944",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-23T22:29:03.045684",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-23T22:29:03.045508"
+        }
+      }
+    ]
+  },
+  {
+    "claim_id": "a09db7f9-0857-4392-ab89-185580609002",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-23T22:29:05.083078",
+    "history": [
+      {
+        "timestamp": "2025-09-23T22:29:05.083097",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-23T22:29:05.085044",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-23T22:29:05.086095",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-23T22:29:05.085871"
+        }
+      }
+    ]
+  },
+  {
+    "claim_id": "79161488-90b9-4827-8932-0cd61407913b",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-23T22:29:05.334100",
+    "history": [
+      {
+        "timestamp": "2025-09-23T22:29:05.334104",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-23T22:29:05.334843",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-23T22:29:05.335131",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-23T22:29:05.335044"
+        }
+      }
+    ]
+  },
+  {
+    "claim_id": "63d543cd-5a7e-408b-b8c7-ec0b67812b06",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-23T22:29:05.492329",
+    "history": [
+      {
+        "timestamp": "2025-09-23T22:29:05.492340",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-23T22:29:05.494285",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-23T22:29:05.495173",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-23T22:29:05.495021"
+        }
+      }
+    ]
+  },
+  {
+    "claim_id": "7e54d4a7-cf8a-4f85-b867-287e40eab5fa",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-23T22:29:09.699261",
+    "history": [
+      {
+        "timestamp": "2025-09-23T22:29:09.699266",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-23T22:29:09.701031",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-23T22:29:09.701925",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-23T22:29:09.701761"
+        }
+      }
+    ]
+  },
+  {
+    "claim_id": "167faca4-a090-4809-a66f-afbb71070b44",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-23T22:29:10.048035",
+    "history": [
+      {
+        "timestamp": "2025-09-23T22:29:10.048043",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-23T22:29:10.050176",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-23T22:29:10.051325",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-23T22:29:10.051110"
+        }
+      }
+    ]
+  },
+  {
+    "claim_id": "58d7baab-86a5-4828-b983-8feb70e1a403",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-23T22:29:10.207279",
+    "history": [
+      {
+        "timestamp": "2025-09-23T22:29:10.207284",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-23T22:29:10.208852",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-23T22:29:10.210033",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-23T22:29:10.209824"
+        }
+      }
+    ]
+  },
+  {
+    "claim_id": "2d021971-fd0b-4936-a7c0-d5e481fe2bff",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-24T08:44:04.206617",
+    "history": [
+      {
+        "timestamp": "2025-09-24T08:44:04.206621",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-24T08:44:04.208300",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-24T08:44:04.208748",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-24T08:44:04.208672"
+        }
+      }
+    ]
+  },
+  {
+    "claim_id": "21e0b567-9c6a-4f45-b7fb-1f0c461c50dc",
+    "policy_holder": "John Doe",
+    "policy_number": "XYZ-12345",
+    "problem_type": "flat tire",
+    "status": "RESOLVED",
+    "created_at": "2025-09-24T08:44:06.011564",
+    "history": [
+      {
+        "timestamp": "2025-09-24T08:44:06.011577",
+        "status": "OPEN",
+        "details": "Claim created for flat tire"
+      },
+      {
+        "timestamp": "2025-09-24T08:44:06.015764",
+        "status": "DISPATCHED",
+        "details": {
+          "provider": "24/7 Roadside Rescue",
+          "eta_minutes": 15,
+          "service_type": "repair_truck"
+        }
+      },
+      {
+        "timestamp": "2025-09-24T08:44:06.017126",
+        "status": "RESOLVED",
+        "details": {
+          "resolution": "Service provider arrived and assisted customer",
+          "completion_time": "2025-09-24T08:44:06.016906"
+        }
+      }
+    ]
   }
 ]

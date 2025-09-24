@@ -1,9 +1,9 @@
 import React from 'react'
-import AdminDashboard from './views/AdminDashboard'
+import KanbanAdminDashboard from './views/KanbanAdminDashboard'
 import './App.css'
 
 function App() {
-  return <AdminDashboard />
+  return <KanbanAdminDashboard />
 }
 
 export default App

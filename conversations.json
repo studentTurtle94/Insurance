@@ -1,0 +1,138 @@
+[
+  {
+    "conversation_id": "conv_1758661399298_3ywrc0mu3",
+    "customer_name": "Unknown",
+    "problem_type": "flat tire",
+    "status": "CLOSED",
+    "created_at": "2025-09-23T22:04:52.929120",
+    "last_updated": "2025-09-23T22:05:16.215010",
+    "messages": [],
+    "requires_human": false,
+    "admin_user": null,
+    "is_active": false
+  },
+  {
+    "conversation_id": "conv_1758662566066_gxhx4citi",
+    "customer_name": "Unknown",
+    "problem_type": "Unknown",
+    "status": "CLOSED",
+    "created_at": "2025-09-23T22:22:47.917896",
+    "last_updated": "2025-09-23T22:26:40.218290",
+    "messages": [
+      {
+        "timestamp": "2025-09-23T22:23:07.934038",
+        "type": "user",
+        "content": "wants to speak to a human",
+        "sender": "Customer"
+      },
+      {
+        "timestamp": "2025-09-23T22:23:34.503801",
+        "type": "admin",
+        "content": "hi, how can i help",
+        "sender": "Admin User"
+      }
+    ],
+    "requires_human": true,
+    "admin_user": null,
+    "is_active": false
+  },
+  {
+    "conversation_id": "conv_1758698976605_c8y5zp72d",
+    "customer_name": "Unknown Customer",
+    "problem_type": "flat tire",
+    "status": "CLOSED",
+    "created_at": "2025-09-24T08:31:17.256990",
+    "last_updated": "2025-09-24T08:36:26.165700",
+    "messages": [
+      {
+        "timestamp": "2025-09-24T08:31:17.263054",
+        "type": "user",
+        "content": "what can i do",
+        "sender": "Client"
+      },
+      {
+        "timestamp": "2025-09-24T08:31:17.265006",
+        "type": "user",
+        "content": "what can i do",
+        "sender": "Customer"
+      }
+    ],
+    "requires_human": false,
+    "admin_user": null,
+    "is_active": false
+  },
+  {
+    "conversation_id": "conv_1758699300057_b3u0lgnsf",
+    "customer_name": "Unknown",
+    "problem_type": "Unknown",
+    "status": "OPEN",
+    "created_at": "2025-09-24T08:35:26.981463",
+    "last_updated": "2025-09-24T08:35:26.981489",
+    "messages": [],
+    "requires_human": false,
+    "admin_user": null,
+    "is_active": true
+  },
+  {
+    "conversation_id": "conv_1758699329801_3b1ocjut9",
+    "customer_name": "John Doe",
+    "problem_type": "flat tire",
+    "status": "CLOSED",
+    "created_at": "2025-09-24T08:36:40.981008",
+    "last_updated": "2025-09-24T08:37:10.515847",
+    "messages": [
+      {
+        "timestamp": "2025-09-24T08:36:40.985101",
+        "type": "user",
+        "content": "hi human",
+        "sender": "Client"
+      },
+      {
+        "timestamp": "2025-09-24T08:36:40.986481",
+        "type": "user",
+        "content": "hi human",
+        "sender": "Customer"
+      }
+    ],
+    "requires_human": true,
+    "admin_user": null,
+    "is_active": false
+  },
+  {
+    "conversation_id": "conv_1758699700548_n1hvhkqoq",
+    "customer_name": "John Doe",
+    "problem_type": "flat tire",
+    "status": "CLOSED",
+    "created_at": "2025-09-24T08:42:41.085876",
+    "last_updated": "2025-09-24T08:43:10.079017",
+    "messages": [
+      {
+        "timestamp": "2025-09-24T08:42:41.089764",
+        "type": "user",
+        "content": "hello to you too",
+        "sender": "Client"
+      },
+      {
+        "timestamp": "2025-09-24T08:42:41.091144",
+        "type": "user",
+        "content": "hello to you too",
+        "sender": "Customer"
+      }
+    ],
+    "requires_human": false,
+    "admin_user": null,
+    "is_active": false
+  },
+  {
+    "conversation_id": "conv_1758699787536_0on6zxbql",
+    "customer_name": "Unknown",
+    "problem_type": "Unknown",
+    "status": "OPEN",
+    "created_at": "2025-09-24T08:43:14.192944",
+    "last_updated": "2025-09-24T08:43:14.192976",
+    "messages": [],
+    "requires_human": false,
+    "admin_user": null,
+    "is_active": true
+  }
+]

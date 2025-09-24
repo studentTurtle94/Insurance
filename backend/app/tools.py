@@ -23,6 +23,7 @@ def get_openai_client():
 # Mock Policy Data for John Doe
 JOHN_DOE_POLICY = {
     "policy_holder": "John Doe",
+    "policy_holder_dob": "1970-01-01",
     "policy_number": "XYZ-12345",
     "start_date": "2024-01-01",
     "end_date": "2026-01-01",
@@ -62,6 +63,8 @@ CUSTOMER_LOCATION = {"lat": 51.554257, "lon": -0.293532}
 
 # Claims file path
 CLAIMS_FILE = "claims.json"
+# Active conversations file path
+CONVERSATIONS_FILE = "conversations.json"
 
 # ==================== AGENT 1: Conversational AI Agent ====================
 def conversational_ai_agent(message: str, conversation_state: Dict[str, Any]) -> Dict[str, Any]:
@@ -832,6 +835,97 @@ def generate_mock_decisions(claim: Dict[str, Any]) -> List[Dict[str, Any]]:
             })
     
     return decisions
+
+# ==================== CONVERSATION TRACKING ====================
+def save_conversation(conversation_id: str, conversation_data: Dict[str, Any]) -> bool:
+    """Save or update a conversation"""
+    conversations = []
+    if os.path.exists(CONVERSATIONS_FILE):
+        try:
+            with open(CONVERSATIONS_FILE, 'r') as f:
+                conversations = json.load(f)
+        except:
+            conversations = []
+    
+    # Update existing or add new conversation
+    updated = False
+    for i, conv in enumerate(conversations):
+        if conv.get("conversation_id") == conversation_id:
+            conversations[i] = conversation_data
+            updated = True
+            break
+    
+    if not updated:
+        conversations.append(conversation_data)
+    
+    try:
+        with open(CONVERSATIONS_FILE, 'w') as f:
+            json.dump(conversations, f, indent=2)
+        return True
+    except:
+        return False
+
+def get_all_conversations() -> List[Dict[str, Any]]:
+    """Get all active conversations"""
+    if not os.path.exists(CONVERSATIONS_FILE):
+        return []
+    
+    try:
+        with open(CONVERSATIONS_FILE, 'r') as f:
+            return json.load(f)
+    except:
+        return []
+
+def detect_human_handoff_request(message: str) -> bool:
+    """Detect if user is requesting human assistance"""
+    message_lower = message.lower()
+    handoff_keywords = [
+        "human", "person", "speak to someone", "talk to someone",
+        "representative", "agent", "operator", "help me",
+        "customer service", "supervisor", "manager", "real person",
+        "not working", "frustrated", "unhappy", "complaint"
+    ]
+    
+    return any(keyword in message_lower for keyword in handoff_keywords)
+
+def create_conversation_entry(conversation_id: str, customer_name: str = None, problem_type: str = None) -> Dict[str, Any]:
+    """Create a new conversation entry"""
+    return {
+        "conversation_id": conversation_id,
+        "customer_name": customer_name or "Unknown",
+        "problem_type": problem_type or "Unknown",
+        "status": "OPEN",
+        "created_at": datetime.now().isoformat(),
+        "last_updated": datetime.now().isoformat(),
+        "messages": [],
+        "requires_human": False,
+        "admin_user": None,
+        "is_active": True
+    }
+
+def add_message_to_conversation(conversation_id: str, message_type: str, content: str, sender: str = None) -> bool:
+    """Add a message to a conversation"""
+    conversations = get_all_conversations()
+    
+    for conv in conversations:
+        if conv.get("conversation_id") == conversation_id:
+            conv["messages"].append({
+                "timestamp": datetime.now().isoformat(),
+                "type": message_type,  # 'user', 'agent', 'admin'
+                "content": content,
+                "sender": sender or message_type
+            })
+            conv["last_updated"] = datetime.now().isoformat()
+            
+            # Check if user is requesting human help
+            if message_type == "user" and detect_human_handoff_request(content):
+                conv["requires_human"] = True
+                conv["status"] = "REQUIRES_HUMAN"
+            
+            save_conversation(conversation_id, conv)
+            return True
+    
+    return False
 
 def takeover_case(case_id: str, admin_user: str, reason: str) -> Dict[str, Any]:
     """Take over a case for manual handling"""
